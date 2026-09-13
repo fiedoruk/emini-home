@@ -1,0 +1,70 @@
+name: Hardware report
+description: Tell us how the preflight check and installation went on your NOTE4C.
+title: "[hardware] "
+labels: ["hardware-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Every report helps other NOTE4C owners decide whether installing is safe.
+        Please do not attach flash backups, Wi-Fi passwords, pairing codes or photos of the setup screen.
+  - type: checkboxes
+    id: device
+    attributes:
+      label: Device
+      options:
+        - label: My device is a NOTE4C with the four-colour display. The preflight check cannot tell a NOTE4 from a NOTE4C.
+          required: true
+  - type: dropdown
+    id: preflight
+    attributes:
+      label: Preflight result
+      description: The line starting with READY, STOP or ERROR printed by tools/preflight.py.
+      options:
+        - "READY: first installation."
+        - "READY: update or reinstall."
+        - "STOP (message below)"
+        - "ERROR, or no READY or STOP line (output below)"
+    validations:
+      required: true
+  - type: textarea
+    id: preflight-output
+    attributes:
+      label: Preflight output
+      description: Paste the lines printed by tools/preflight.py, but leave out the Backup SHA-256 line. That checksum identifies your backup.
+      render: text
+  - type: dropdown
+    id: installed
+    attributes:
+      label: Did you install emini Home?
+      options:
+        - "Yes, and the display changed (setup screen, or my screens after an update)"
+        - "Yes, but the display did not change"
+        - "Yes, but a step failed or the write stopped (details below)"
+        - "No, I stopped after the preflight check"
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: emini Home version
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: input
+    id: esptool
+    attributes:
+      label: esptool version and operating system
+      placeholder: "esptool 5.4.0 on macOS 15"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Panel on your phone, Wi-Fi, weather, battery, anything you noticed.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I have not attached a flash backup, a password, a pairing code or a photo of the setup screen.
+          required: true

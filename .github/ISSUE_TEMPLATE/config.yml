@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/fiedoruk/emini-home/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Project website
+    url: https://emini.ink/home/
+    about: What emini Home is, with screenshots of the display and the phone panel.

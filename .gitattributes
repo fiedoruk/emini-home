@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.bin binary
+firmware/main/generated/** linguist-generated=true

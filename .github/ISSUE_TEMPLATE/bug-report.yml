@@ -1,0 +1,58 @@
+name: Bug report
+description: Something on the display or in the phone panel does not work as described.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the [installation guide](https://github.com/fiedoruk/emini-home/blob/main/docs/INSTALL.md) and the [phone panel guide](https://github.com/fiedoruk/emini-home/blob/main/docs/PANEL.md) first.
+        Never post flash backups, Wi-Fi passwords, pairing codes, access tokens or photos of the setup screen.
+  - type: input
+    id: firmware
+    attributes:
+      label: emini Home version
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: Installation
+      description: Was this a first installation on this NOTE4C, or an update or reinstall over emini Home?
+      options:
+        - "First installation"
+        - "Update or reinstall"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the panel
+        2. ...
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and browser (if the problem is in the panel)
+      placeholder: "iPhone 15, Safari"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or messages
+      description: Remove anything private before attaching.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I have not attached a flash backup, and I have removed passwords, pairing codes, access tokens, personal content and photos of the setup screen.
+          required: true

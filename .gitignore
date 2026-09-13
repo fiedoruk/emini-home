@@ -1,0 +1,36 @@
+# ESP-IDF build output and local configuration
+build/
+managed_components/
+dependencies.lock
+sdkconfig
+sdkconfig.old
+compile_commands.json
+*.elf
+*.map
+
+# Flash backups and firmware files never belong in the repository
+*.bin
+*backup*
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+private/
+
+# Editors, tools and operating systems
+.vscode/
+.idea/
+.cache/
+node_modules/
+__pycache__/
+*.log
+*.swp
+*~
+*.orig
+*.bak
+*.zip
+.DS_Store
+._*
+__MACOSX/

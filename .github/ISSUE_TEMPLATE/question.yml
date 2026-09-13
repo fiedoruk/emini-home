@@ -1,0 +1,28 @@
+name: Question
+description: Ask about installing or using emini Home.
+title: "[question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the [installation guide](https://github.com/fiedoruk/emini-home/blob/main/docs/INSTALL.md) and the [phone panel guide](https://github.com/fiedoruk/emini-home/blob/main/docs/PANEL.md) first.
+        Never post flash backups, Wi-Fi passwords, pairing codes, access tokens or photos of the setup screen.
+  - type: input
+    id: firmware
+    attributes:
+      label: emini Home version
+      placeholder: "0.4.0"
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I have not attached a flash backup, and I have removed passwords, pairing codes, access tokens, personal content and photos of the setup screen.
+          required: true

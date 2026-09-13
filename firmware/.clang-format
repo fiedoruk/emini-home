@@ -1,0 +1,12 @@
+# Style of home_render.c, home_panel.c and home_store.c.
+# The last two lines keep formatting token-neutral: no string literal splitting, no comment reflow.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+BreakBeforeBraces: Linux
+SortIncludes: Never
+BreakStringLiterals: false
+ReflowComments: Never
