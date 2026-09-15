@@ -13,6 +13,7 @@ required, it is next to the component source or in [`licenses/`](licenses/).
 | [Espressif mDNS](https://github.com/espressif/esp-protocols) | 1.12.0 (`db06b19`) | Apache-2.0 | [`firmware/components/mdns/LICENSE`](firmware/components/mdns/LICENSE) |
 | NOTE4C display driver and battery curve, adapted from the [reference firmware by LazyYoun](https://github.com/LazyYoun/youn-ink-fourcolor-firmware/tree/51812e4ab3fa80ba7a5a5a274635ca2cf3901a25) | `51812e4` | MIT | notice at the top of [`firmware/main/home_panel.c`](firmware/main/home_panel.c) |
 | [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next), Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors; bitmap subset in `firmware/main/generated/home_font.c` | 2.001 | SIL OFL 1.1 | [`licenses/Atkinson-OFL.txt`](licenses/Atkinson-OFL.txt) |
+| [Noto Sans CJK SC](https://github.com/notofonts/noto-cjk), Copyright 2014-2021 Adobe (http://www.adobe.com/); bitmap subset (GB 2312 level 1, sizes 12/16/22/30 px) appended to `firmware/main/generated/home_font.c` by `tools/build_fonts_cjk.py` | Medium, 2.004 | SIL OFL 1.1 | [`licenses/NotoSansCJK-OFL.txt`](licenses/NotoSansCJK-OFL.txt) |
 | [IANA Time Zone Database](https://www.iana.org/time-zones), compiled table in `firmware/main/generated/home_zones.c` | 2026c | public domain | — |
 
 The battery percentage curve in `firmware/main/home_battery.c` comes from the

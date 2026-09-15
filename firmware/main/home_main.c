@@ -80,6 +80,15 @@ static int keys(void)
  * Only the main task (loop and action) touches these. */
 static uint32_t cycle_showing[3];
 static int64_t cycle_at[3];
+/* A screen whose card does not depend on the composition (no data yet). */
+static bool screen_has_data(int s)
+{
+    const home_config_t *c = &home_runtime.config;
+    const home_data_t *d = &home_runtime.data;
+    return s == 0   ? c->location_ready && d->weather.meta.valid
+           : s == 1 ? d->feed.meta.valid
+                    : c->note[0] != 0;
+}
 static void action(int key)
 {
     int64_t now = esp_timer_get_time();
@@ -105,8 +114,8 @@ static void action(int key)
         int showing =
             shown >= 0 && cycle_showing[shown] ? (int)((cycle_showing[shown] - 1) % 3) : 0;
         if (shown >= 0 && shown < 3 && shown == current &&
-            home_runtime.config.style[shown] == HOME_CYCLE && showing + step >= 0 &&
-            showing + step <= 2) {
+            home_runtime.config.style[shown] == HOME_CYCLE && screen_has_data(shown) &&
+            showing + step >= 0 && showing + step <= 2) {
             cycle_showing[shown] = (uint32_t)(showing + step + 1);
             cycle_at[shown] = now;
             home_runtime.pending_screen = shown;
@@ -298,10 +307,17 @@ void app_main(void)
                 dirty = true;
         }
         /* "In turn": the next composition whenever the screen appears, and every
-         * rotation interval while it stays on the display (not in quiet hours). */
+         * cycle_min while it stays on the display. The timer waits for valid time,
+         * the manual pause and quiet hours. Choosing In turn for the screen on the
+         * display starts the timer without redrawing (Save does not publish). */
         bool cycle = !setup && screen >= 0 && screen < 3 && c->style[screen] == HOME_CYCLE;
-        bool cycle_due = cycle && (screen != current || !cycle_at[screen] ||
-                                   mono - cycle_at[screen] >= (int64_t)c->cycle_min * 60000000);
+        if (cycle && screen == current && !cycle_at[screen]) {
+            cycle_at[screen] = mono;
+            cycle_showing[screen] = 1;
+        }
+        bool cycle_due = cycle && (screen != current ||
+                                   (valid && mono >= manual &&
+                                    mono - cycle_at[screen] >= (int64_t)c->cycle_min * 60000000));
         if (cycle_due && screen == current && !quiet)
             dirty = true;
         if (phase != 3 && dirty &&

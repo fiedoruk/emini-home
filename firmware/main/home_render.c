@@ -152,9 +152,8 @@ static uint32_t next_cp(const char *s, size_t n, size_t *at)
     *at += count;
     return cp;
 }
-static const home_glyph_t *glyph(int fi, uint32_t cp)
+static const home_glyph_t *find_glyph(const home_font_t *f, uint32_t cp)
 {
-    const home_font_t *f = &home_fonts[fi];
     unsigned lo = f->first, hi = lo + f->count;
     while (lo < hi) {
         unsigned m = lo + (hi - lo) / 2;
@@ -165,7 +164,46 @@ static const home_glyph_t *glyph(int fi, uint32_t cp)
     }
     if (lo < (unsigned)f->first + f->count && home_glyphs[lo].codepoint == cp)
         return &home_glyphs[lo];
-    return &home_glyphs[f->first + ('?' - 32)];
+    return NULL;
+}
+/* Han, kana, CJK punctuation and full-width forms: no spaces, so each character is a
+ * line-break opportunity (poster text), and every glyph comes from the CJK tables. */
+static bool cjk(uint32_t cp)
+{
+    return (cp >= 0x2e80 && cp <= 0x9fff) || (cp >= 0xf900 && cp <= 0xfaff) ||
+           (cp >= 0xff00 && cp <= 0xffef);
+}
+/* Kinsoku: closing punctuation never starts a line, opening never ends one. */
+static bool cjk_no_start(uint32_t cp)
+{
+    return cp == 0x3001 || cp == 0x3002 || cp == 0xff0c || cp == 0xff0e || cp == 0xff01 ||
+           cp == 0xff1f || cp == 0xff1a || cp == 0xff1b || cp == 0x300d || cp == 0x300f ||
+           cp == 0x3011 || cp == 0x3015 || cp == 0xff09 || cp == 0x300b || cp == 0x3009 ||
+           cp == 0x2026 || cp == 0x2014;
+}
+static bool cjk_no_end(uint32_t cp)
+{
+    return cp == 0x300c || cp == 0x300e || cp == 0x3010 || cp == 0x3014 || cp == 0xff08 ||
+           cp == 0x300a || cp == 0x3008;
+}
+/* The CJK table of the same pixel size as Atkinson font fi, if there is one. */
+static const home_glyph_t *cjk_glyph(int fi, uint32_t cp)
+{
+    if (!cjk(cp))
+        return NULL;
+    for (unsigned i = 0; i < sizeof home_cjk_fonts / sizeof *home_cjk_fonts; ++i)
+        if (home_cjk_fonts[i].size == home_fonts[fi].size)
+            return find_glyph(&home_cjk_fonts[i], cp);
+    return NULL;
+}
+static bool has_glyph(int fi, uint32_t cp)
+{
+    return cjk(cp) ? cjk_glyph(fi, cp) != NULL : find_glyph(&home_fonts[fi], cp) != NULL;
+}
+static const home_glyph_t *glyph(int fi, uint32_t cp)
+{
+    const home_glyph_t *g = cjk(cp) ? cjk_glyph(fi, cp) : find_glyph(&home_fonts[fi], cp);
+    return g ? g : &home_glyphs[home_fonts[fi].first + ('?' - 32)];
 }
 static int width(int fi, const char *s, size_t cap)
 {
@@ -223,6 +261,10 @@ static void text(canvas_t *c, int x, int y, int w, int h, int fi, int p, const c
             if (ch == '\t')
                 ch = ' ';
             int advance = glyph(fi, ch)->advance;
+            if (cjk(ch) && count && !cjk_no_start(ch) && !cjk_no_end(cp[count - 1])) {
+                space = count; /* break before this character, keeping the previous one */
+                space_at = before;
+            }
             if (used + advance > w) {
                 at = before;
                 if (space < 0) {
@@ -237,7 +279,10 @@ static void text(canvas_t *c, int x, int y, int w, int h, int fi, int p, const c
             }
             cp[count++] = ch;
             used += advance;
-            if (ch == ' ' && c->pl && one_letter_word(cp, count - 1)) {
+            if (cjk(ch) && !cjk_no_end(ch)) {
+                space = count;
+                space_at = at;
+            } else if (ch == ' ' && c->pl && one_letter_word(cp, count - 1)) {
                 kept = count - 1;
                 kept_at = at;
             } else if (ch == ' ') {
@@ -370,16 +415,16 @@ static void empty(canvas_t *c, const home_config_t *cfg, home_screen_t screen,
                                     "forecast will appear here.",
                                     "Otwórz panel w telefonie i użyj swojej lokalizacji. Pierwsza "
                                     "prognoza pojawi się tutaj.")
-        : screen == HOME_FEED ? tr(pl,
-                                   "Choose an RSS or Atom source in your phone panel. One story, "
-                                   "without a stream to chase.",
-                                   "Wybierz źródło RSS lub Atom w panelu telefonu. Jedna "
-                                   "wiadomość, bez gonienia za strumieniem.")
-                              : tr(pl,
-                                   "Write a message in your phone panel. A reminder, a thought, "
-                                   "something worth keeping in view.",
-                                   "Wpisz wiadomość w panelu telefonu. Przypomnienie, myśl, coś, "
-                                   "co warto mieć na widoku.");
+        : screen == HOME_FEED  ? tr(pl,
+                                    "Choose an RSS or Atom source in your phone panel. One story, "
+                                    "without a stream to chase.",
+                                    "Wybierz źródło RSS lub Atom w panelu telefonu. Jedna "
+                                    "wiadomość, bez gonienia za strumieniem.")
+                               : tr(pl,
+                                    "Write a message in your phone panel. A reminder, a thought, "
+                                    "something worth keeping in view.",
+                                    "Wpisz wiadomość w panelu telefonu. Przypomnienie, myśl, coś, "
+                                    "co warto mieć na widoku.");
     txt(c, 14, 172, 260, 80, 1, body);
     rect(c, 14, 261, 372, 1, BLACK);
     txt(c, 14, 269, 372, 22, 1,
@@ -462,15 +507,16 @@ static void clock_text(char *out, size_t len, const struct tm *tm, bool clock24,
  * symbol of their own in the cache, so the current one stands in for them. */
 static const char *precipitation(const home_weather_t *w, bool pl)
 {
-    return pl ? "Opady"
+    return pl                                               ? "Opady"
            : contains(w->symbol, sizeof w->symbol, "sleet") ? "Sleet"
            : contains(w->symbol, sizeof w->symbol, "snow")  ? "Snow"
-                                                             : "Rain";
+                                                            : "Rain";
 }
 /* When the first rain of the parsed hourly window starts and stops. hourly_rain[k]
  * covers the hour from forecast_at + k h. The window ends at the first hour without
  * a rain amount, so nothing is claimed past the window or past missing data. */
-static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const home_weather_t *w)
+static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const home_weather_t *w,
+                         int64_t now)
 {
     bool pl = polish(cfg);
     const char *noun = precipitation(w, pl);
@@ -478,9 +524,12 @@ static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const 
     for (int k = 0; k < n; ++k)
         if (!isfinite(w->hourly_rain[k]))
             n = k;
-    if (n < 2 || !time_valid(w->forecast_at))
+    /* Hours already over are skipped, so older data never names a time that has passed. */
+    int64_t ago = time_valid(now) && now > w->forecast_at ? now - w->forecast_at : 0;
+    int first = ago >= 12 * 3600 ? 12 : (int)(ago / 3600);
+    if (n - first < 2 || !time_valid(w->forecast_at))
         return false;
-    for (int k = 0; k < n; ++k) {
+    for (int k = first; k < n; ++k) {
         bool wet = w->hourly_rain[k] > 0.05; /* same threshold as rain_field() */
         if (wet && start < 0)
             start = k;
@@ -488,7 +537,8 @@ static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const 
             stop = k;
     }
     struct tm from, until;
-    if (!home_tz_localtime(cfg->timezone, w->forecast_at + (int64_t)imax(start, 0) * 3600, &from) ||
+    if (!home_tz_localtime(cfg->timezone, w->forecast_at + (int64_t)imax(start, first) * 3600,
+                           &from) ||
         !home_tz_localtime(cfg->timezone, w->forecast_at + (int64_t)(stop < 0 ? n : stop) * 3600,
                            &until))
         return false;
@@ -498,9 +548,9 @@ static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const 
     clock_text(b, sizeof b, &until, cfg->clock24, true, true);
     if (start < 0)
         snprintf(out, len, pl ? "Bez opadów do %s" : "Dry until %s", b);
-    else if (start == 0 && stop < 0)
-        snprintf(out, len, pl ? "%s przez %d h" : "%s for %d h", noun, n);
-    else if (start == 0)
+    else if (start == first && stop < 0)
+        snprintf(out, len, pl ? "%s przez %d h" : "%s for %d h", noun, n - first);
+    else if (start == first)
         snprintf(out, len, pl ? "%s do %s" : "%s until %s", noun, b);
     else if (stop < 0)
         snprintf(out, len, pl ? "%s od %s" : "%s from %s", noun, a);
@@ -535,8 +585,8 @@ static void disc(canvas_t *c, int cx, int cy, int rx, int ry, const home_weather
             float dy = (y - cy) * inv_ry, r = dx * dx + dy * dy;
             if (r > 1.0f)
                 continue;
-            int p = night ? mix(c, x, y, PAPER, BLACK, night_shade)
-                          : mix(c, x, y, YELLOW, RED, shade);
+            int p =
+                night ? mix(c, x, y, PAPER, BLACK, night_shade) : mix(c, x, y, YELLOW, RED, shade);
             if (dx < -0.35f && r > 0.36f && ((int)(sqrtf(r) * 40.0f) % 7) == 0)
                 p = night ? PAPER : YELLOW;
             if (dy > edge)
@@ -607,8 +657,7 @@ static void forecast_graph(canvas_t *c, const home_weather_t *w, int x, int y, i
         int py = y + hh - 1 - (int)((value - low) / (high - low) * (hh - 1));
         float shade_step = 0.78f / imax(1, y + hh - py);
         for (int yy = py; yy < y + hh; ++yy)
-            pixel(c, x + xx, yy,
-                  mix(c, x + xx, yy, YELLOW, RED, (yy - py) * shade_step));
+            pixel(c, x + xx, yy, mix(c, x + xx, yy, YELLOW, RED, (yy - py) * shade_step));
         if (xx)
             line(c, lastx, lasty, x + xx, py, BLACK);
         lastx = x + xx;
@@ -650,7 +699,7 @@ static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t 
     } else
         snprintf(range, sizeof range, "°%s · %s", f ? "F" : "C",
                  tr(pl, "No range", "Brak zakresu"));
-    if (!rain_outlook(rain, sizeof rain, cfg, w))
+    if (!rain_outlook(rain, sizeof rain, cfg, w, now))
         rain_amount(rain, sizeof rain, w, pl);
     if (isfinite(w->wind_speed)) {
         number(a, sizeof a, clamp(w->wind_speed, 0, 150), 1, pl);
@@ -762,7 +811,9 @@ static uint32_t fingerprint(const char *s, size_t cap)
 }
 /* A reproducible printed signature of this particular text, not a score or a
  * data chart. It changes when the story/message changes and exports exactly. */
-typedef struct { int x, y, width, height; } paper_window_t;
+typedef struct {
+    int x, y, width, height;
+} paper_window_t;
 static void signature(canvas_t *c, const char *s, size_t cap, int style, int topy, int bottom,
                       const paper_window_t *paper)
 {
@@ -775,14 +826,14 @@ static void signature(canvas_t *c, const char *s, size_t cap, int style, int top
         for (int x = 0; x < W; ++x) {
             // The caller immediately paints this rectangle opaque paper.
             // Skipping its texture is bit-exact and avoids hidden trig work.
-            if (paper && x >= paper->x && x < paper->x + paper->width &&
-                y >= paper->y && y < paper->y + paper->height)
+            if (paper && x >= paper->x && x < paper->x + paper->width && y >= paper->y &&
+                y < paper->y + paper->height)
                 continue;
             float dx = x - 200.0f;
             float pattern = style == HOME_RHYTHM ? (0.5f + 0.5f * sinf(x / 23.0f + row_phase))
-                             : style == HOME_ATLAS
-                                 ? (0.5f + 0.5f * cosf(sqrtf(dx * dx + dy * dy) / 13.0f + phase))
-                                 : (x / 399.0f);
+                            : style == HOME_ATLAS
+                                ? (0.5f + 0.5f * cosf(sqrtf(dx * dx + dy * dy) / 13.0f + phase))
+                                : (x / 399.0f);
             pixel(c, x, y, mix(c, x, y, YELLOW, RED, pattern * a * 0.88f));
             if (style == HOME_PRINT && ((x + (hash % 11)) % 21 == 0))
                 pixel(c, x, y, mix(c, x, y, PAPER, YELLOW, 0.6f));
@@ -797,7 +848,8 @@ static bool poster_layout(canvas_t *c, int x, int y, int w, int h, int fi, const
     size_t n = bounded(s, cap), at = 0;
     int row = 0, step = home_fonts[fi].size + 4, needed = 0;
     while (at < n) {
-        while (at < n && (s[at] == ' ' || (compact && (s[at] == '\n' || s[at] == '\r' || s[at] == '\t'))))
+        while (at < n &&
+               (s[at] == ' ' || (compact && (s[at] == '\n' || s[at] == '\r' || s[at] == '\t'))))
             ++at;
         if (at == n)
             break;
@@ -817,7 +869,13 @@ static bool poster_layout(canvas_t *c, int x, int y, int w, int h, int fi, const
                 ch = ' ';
             if (compact && ch == ' ' && (!count || cp[count - 1] == ' '))
                 continue;
+            if (!has_glyph(fi, ch) && ch != ' ')
+                return false; /* try the next size; CJK tables cover fewer sizes */
             const home_glyph_t *g = glyph(fi, ch);
+            if (cjk(ch) && count && !cjk_no_start(ch) && !cjk_no_end(cp[count - 1])) {
+                space = count;
+                space_at = before;
+            }
             if (used + g->advance > w - 8 || used + g->left + g->width > w - 6) {
                 at = before;
                 if (!count)
@@ -834,7 +892,10 @@ static bool poster_layout(canvas_t *c, int x, int y, int w, int h, int fi, const
             }
             cp[count++] = ch;
             used += g->advance;
-            if (ch == ' ' && pl && one_letter_word(cp, count - 1)) {
+            if (cjk(ch) && !cjk_no_end(ch)) {
+                space = count;
+                space_at = at;
+            } else if (ch == ' ' && pl && one_letter_word(cp, count - 1)) {
                 kept = count - 1;
                 kept_at = at;
             } else if (ch == ' ') {
@@ -853,8 +914,8 @@ static bool poster_layout(canvas_t *c, int x, int y, int w, int h, int fi, const
                 return false;
             needed = imax(needed, bottom);
             if (c)
-                draw_glyph(c, cursor, y + row * step + home_fonts[fi].size, fi, cp[i], BLACK,
-                           x, y, w, h);
+                draw_glyph(c, cursor, y + row * step + home_fonts[fi].size, fi, cp[i], BLACK, x, y,
+                           w, h);
             cursor += g->advance;
         }
         ++row;
@@ -907,8 +968,7 @@ static void feed(canvas_t *c, const home_config_t *cfg, const home_feed_t *f, in
         signature(c, f->title, sizeof f->title, style, 218, 254, NULL);
         poster_text(c, 14, 79, 372, 138, f->title, sizeof f->title, cfg->large_text);
     } else {
-        signature(c, f->title, sizeof f->title, style, 78, 248,
-                  &(paper_window_t){0, 76, 376, 174});
+        signature(c, f->title, sizeof f->title, style, 78, 248, &(paper_window_t){0, 76, 376, 174});
         rect(c, 0, 76, 376, 174, PAPER);
         poster_text(c, 14, 81, 348, 168, f->title, sizeof f->title, cfg->large_text);
     }
@@ -997,10 +1057,12 @@ void home_render_setup(const char *ssid, const char *password, const char *code,
     if (bounded_inputs) {
         snprintf(password_line, sizeof(password_line), "%s: %s", tr(pl, "Password", "Hasło"),
                  password);
-        bool fit = width(0, ssid, 33) <= 372 && width(0, password_line, sizeof(password_line)) <= 372 &&
+        bool fit = width(0, ssid, 33) <= 372 &&
+                   width(0, password_line, sizeof(password_line)) <= 372 &&
                    width(1, address, 128) <= 372;
         bool panel_url = !strncmp(address, "http://", 7) && !strpbrk(address, "?#@\r\n");
-        if (fit && panel_url && home_qr_wifi_text(ssid, password, wifi_payload, sizeof(wifi_payload)) &&
+        if (fit && panel_url &&
+            home_qr_wifi_text(ssid, password, wifi_payload, sizeof(wifi_payload)) &&
             home_qr_paint(frame, wifi_payload, 14, 48, 172, 136, NULL) &&
             home_qr_paint(frame, address, 214, 48, 172, 136, NULL)) {
             /* 26 px box: the 22 px font descends 25 rows below the box top. */

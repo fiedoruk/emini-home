@@ -2,7 +2,7 @@
 
 **A calm, four-colour poster of your day for the ZECTRIX NOTE4C e-paper devkit.**
 
-`0.4.0` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
+`0.4.1` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
   <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.4.0. The Weather screen in the Print composition shows 15° in Czaplinek, 14–17 °C over 24 hours, cloud cover, and rain from 21:00 to 23:00.">
@@ -15,10 +15,10 @@ yellow pigments. You set it up in your phone's browser, without an app or an
 account. After that the device does the rest on its own, and no emini.ink
 server sits in between.
 
-[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.4.0](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.0) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
+[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.4.1](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.1) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
 
 > [!WARNING]
-> Version 0.4.0 has been installed and tested on one NOTE4C. Read the
+> Version 0.4.1 has been installed and tested on one NOTE4C. Read the
 > [status](#status) before you install. The preflight check in the
 > installation guide tells you to stop if your device's boot data differs
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
@@ -30,7 +30,7 @@ server sits in between.
   <img src="docs/images/epaper-weather-rhythm.png" width="400" alt="Rhythm composition: a sample forecast for Warsaw with a dithered temperature curve for the next hours">
   <img src="docs/images/epaper-weather-atlas.png" width="400" alt="Atlas composition: the same sample forecast with a large sun and cloud on the left half">
 </p>
-<p align="center"><sub>Rhythm and Atlas, drawn on a computer by the 0.4.0 renderer from sample data. The photo at the top shows Print.</sub></p>
+<p align="center"><sub>Rhythm and Atlas, drawn on a computer by the 0.4.1 renderer from sample data. The photo at the top shows Print.</sub></p>
 
 Rhythm draws the coming hours as a curve, and Atlas gives the sky half of the
 page. Each screen can keep one composition, or use **In turn** and move on to
@@ -54,6 +54,10 @@ pixels.
 News comes from BBC World by default, or from a public RSS or Atom feed of your
 choice, as long as it is served over HTTPS. The note is yours: a reminder, a
 line from a friend, a few words to keep in view.
+
+Headlines and notes in Simplified Chinese are drawn with Noto Sans CJK glyphs
+(the 3 755 most common characters plus punctuation); lines break between
+characters, so a Chinese feed such as a news site's RSS works as it is.
 
 ## Set it up from your phone
 
@@ -81,14 +85,14 @@ goes into two full backups. In short:
 1. Back up the whole flash twice.
 2. Run [`tools/preflight.py`](tools/preflight.py) on the backups. It compares
    them with the tested NOTE4C and says `READY` or `STOP`.
-3. Write two files from the [0.4.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.0):
+3. Write two files from the [0.4.1 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.1):
    the partition table at `0x8000` and the application at `0x20000`. The
    bootloader and factory data stay untouched.
 4. Verify, start and continue on your phone.
 
 ## Status
 
-Where 0.4.0 stands:
+Where 0.4.1 stands:
 
 - **Tested on one NOTE4C Devkit** (ESP32-S3, 16 MiB flash, factory partition
   layout). This release was written and verified on that unit with the
@@ -153,6 +157,7 @@ emini Home is released under the [MIT License](LICENSE).
 - Display driver and battery curve adapted from the
   [NOTE4C reference firmware by LazyYoun](https://github.com/LazyYoun/youn-ink-fourcolor-firmware) (MIT).
 - Typeface: [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) (SIL OFL 1.1).
+- Chinese glyphs: [Noto Sans CJK SC](https://github.com/notofonts/noto-cjk) (SIL OFL 1.1), GB 2312 level 1.
 - Built on [ESP-IDF](https://github.com/espressif/esp-idf); all components and
   licences are listed in [third-party notices](THIRD_PARTY_NOTICES.md).
 

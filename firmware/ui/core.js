@@ -516,10 +516,18 @@
         "location_ready",
         c.location_ready === undefined || typeof c.location_ready === "boolean",
       );
+      // Same limits as home_config.c, so Home never rejects what the panel accepted.
+      check("name", typeof c.name === "string" && c.name.trim() !== "");
       if (c.feed_url) {
         try {
           const u = new URL(c.feed_url);
-          if (u.protocol !== "https:" || u.username || u.password)
+          if (
+            u.protocol !== "https:" ||
+            u.username ||
+            u.password ||
+            !c.feed_url.startsWith("https://") ||
+            /[@#\s\\]/.test(c.feed_url)
+          )
             errors.push("feed_url");
         } catch {
           errors.push("feed_url");
@@ -583,7 +591,8 @@
       c.quiet &&
         typeof c.quiet.enabled === "boolean" &&
         time(c.quiet.start) &&
-        time(c.quiet.end),
+        time(c.quiet.end) &&
+        (!c.quiet.enabled || c.quiet.start !== c.quiet.end),
     );
     check(
       "day",

@@ -753,8 +753,10 @@ static void candidate_done(xml_parser_t *p)
         memcpy(candidate.url, url, strlen(url) + 1);
     candidate.meta.valid = true;
     candidate.meta.issued_at = candidate.published_at;
-    if (!p->best.meta.valid || (!p->first_entry && ((dated && !p->best_dated) ||
-        (dated && p->best_dated && candidate.published_at > p->best.published_at)))) {
+    if (!p->best.meta.valid ||
+        (!p->first_entry &&
+         ((dated && !p->best_dated) ||
+          (dated && p->best_dated && candidate.published_at > p->best.published_at)))) {
         p->best = candidate;
         p->best_dated = dated;
     }
@@ -1086,10 +1088,17 @@ static bool scan_xml(xml_parser_t *p)
             continue;
         }
         if (left >= 2 && start[1] == '?') {
-            /* Only a leading XML declaration, UTF-8 input. Other processing
-             * instructions are outside this data-only parser's accepted subset. */
-            if (!xml_declaration(p))
+            /* A leading XML declaration (UTF-8 input), then any other processing
+             * instruction, such as <?xml-stylesheet ...?>, is skipped whole. */
+            if (left >= 6 && !memcmp(start, "<?xml", 5) && space((unsigned char)start[5])) {
+                if (!xml_declaration(p))
+                    return false;
+                continue;
+            }
+            const char *end = find_span(start + 2, left - 2, "?>");
+            if (!end || end == start + 2)
                 return false;
+            p->pos = (size_t)(end - p->body) + 2;
             continue;
         }
         if (left >= 2 && start[1] == '!')
@@ -1109,8 +1118,8 @@ static bool scan_xml(xml_parser_t *p)
     return p->root_seen && p->root_closed && !p->depth && p->best.meta.valid;
 }
 
-static bool parse_feed(const char *xml, size_t len, home_feed_t *out, int64_t now,
-                       char error[97], bool first_entry)
+static bool parse_feed(const char *xml, size_t len, home_feed_t *out, int64_t now, char error[97],
+                       bool first_entry)
 {
     if (!out || now <= 0 || now > INT64_C(253402300799) || !valid_body(xml, len))
         return fail(error, "Invalid or oversized feed XML");

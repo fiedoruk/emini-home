@@ -2403,6 +2403,12 @@
     };
   }
   async function save() {
+    // The minutes field is hidden unless a screen is In turn: never block a save on it.
+    if (
+      !C.screens.some((s) => S.draft.styles?.[s] === "cycle") &&
+      C.validate(S.draft).includes("cycle_min")
+    )
+      S.draft.cycle_min = S.config?.cycle_min ?? 30;
     const errors = C.validate(S.draft);
     if (errors.length) {
       notice(
@@ -2458,18 +2464,7 @@
       await previews();
       if (editedWhileSaving) queueDraftPreview();
     } catch (e) {
-      if (
-        e.status === 400 &&
-        C.screens.some((s) => submitted.styles?.[s] === "cycle")
-      )
-        notice(
-          say(
-            "This Home software cannot rotate compositions yet. Choose Print, Rhythm or Atlas.",
-            "To oprogramowanie Home nie obsługuje jeszcze kompozycji po kolei. Wybierz Plakat, Rytm albo Atlas.",
-          ),
-          true,
-        );
-      else error(e);
+      error(e);
     } finally {
       S.saveInFlight = false;
       updateDirty();

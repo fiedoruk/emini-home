@@ -40,27 +40,35 @@ Two files in `firmware/main/generated` are committed as generated C, so the
 build needs nothing but ESP-IDF:
 
 - `home_font.c` holds bitmaps of Atkinson Hyperlegible Next 2.001 at 10, 12,
-  16, 22, 30, 44, 48 and 64 pixels, 333 glyphs per size.
+  16, 22, 30, 44, 48 and 64 pixels, 333 glyphs per size, followed by
+  Simplified Chinese glyphs from Noto Sans CJK SC Medium (GB 2312 level 1,
+  3 866 codepoints with punctuation and full-width forms) at 12, 16, 22 and
+  30 pixels.
 - `home_zones.c` holds 598 time zones compiled from the IANA Time Zone
   Database, release 2026c, with transitions up to the start of 2041.
 
-The scripts that produced them are not part of this repository. If you need
-another glyph or a newer time zone release, please open an issue.
+The Chinese glyphs are appended by `tools/build_fonts_cjk.py` (Python 3 with
+Pillow) from `NotoSansCJKsc-Medium.otf`, available in the
+[noto-cjk repository](https://github.com/notofonts/noto-cjk) under
+`Sans/OTF/SimplifiedChinese/`; run it on an Atkinson-only `home_font.c` with
+the font path as its argument. The scripts that produced the Atkinson and
+time-zone tables are not part of this repository. If you need another glyph
+or a newer time zone release, please open an issue.
 
 ## Comparing with the release
 
 The release configuration is `firmware/sdkconfig.defaults`, expanded by
 ESP-IDF v6.0 into the full `sdkconfig` that is attached to the
-[v0.4.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.0)
+[v0.4.1 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.1)
 for reference.
 
 Your application image will not be byte-identical to the release image,
 because ESP-IDF stores the build date and time inside it. Everything else
-should be. To check, download `emini-home-0.4.0-note4c.bin` from the release
+should be. To check, download `emini-home-0.4.1-note4c.bin` from the release
 into the `firmware` folder and run, still from `firmware`:
 
 ```sh
-python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.4.0-note4c.bin
+python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.4.1-note4c.bin
 ```
 
 `MATCH` means the two images differ only in the build timestamp and the

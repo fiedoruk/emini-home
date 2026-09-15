@@ -723,10 +723,12 @@ canvas {
   margin: 30px 0;
 }
 .pair-art span:first-child {
-  background: repeating-conic-gradient(#7b0001 0% 25%, #f7ad01 0% 50%) 0 0/4px 4px;
+  background: repeating-conic-gradient(#7b0001 0% 25%, #f7ad01 0% 50%) 0 0/4px
+    4px;
 }
 .pair-art span:last-child {
-  background: repeating-conic-gradient(#1a1a16 0% 25%, #e6e5db 0% 50%) 0 0/4px 4px;
+  background: repeating-conic-gradient(#1a1a16 0% 25%, #e6e5db 0% 50%) 0 0/4px
+    4px;
 }
 .pair-code {
   font:
@@ -776,7 +778,8 @@ canvas {
 .share-hero .raster {
   height: 38px;
   margin: 22px 0;
-  background: repeating-conic-gradient(#7b0001 0% 25%, #f7ad01 0% 50%) 0 0/4px 4px;
+  background: repeating-conic-gradient(#7b0001 0% 25%, #f7ad01 0% 50%) 0 0/4px
+    4px;
 }
 .share-hero button {
   background: var(--paper);
@@ -1390,7 +1393,8 @@ summary:focus-visible,
   right: 0;
   bottom: 0;
   height: calc(var(--nav-height) + env(safe-area-inset-bottom));
-  padding: 6px max(12px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom));
+  padding: 6px max(12px, env(safe-area-inset-right))
+    calc(6px + env(safe-area-inset-bottom));
   background: var(--paper);
   border-top: 1px solid var(--line);
   border-bottom: 0;
@@ -1811,7 +1815,13 @@ summary:focus-visible,
   display: block;
   width: 88px;
   height: 5px;
-  background: linear-gradient(90deg, #1a1a16 0 25%, #e6e5db 25% 50%, #f7ad01 50% 75%, #7b0001 75%);
+  background: linear-gradient(
+    90deg,
+    #1a1a16 0 25%,
+    #e6e5db 25% 50%,
+    #f7ad01 50% 75%,
+    #7b0001 75%
+  );
   border: 1px solid var(--line);
 }
 .editor-layout {
@@ -2818,6 +2828,9 @@ summary:focus-visible,
 .fields > .style-note {
   margin-top: -8px;
 }
+#cycle-hint .field {
+  margin-top: 12px;
+}
 .place-results button[aria-selected="true"] {
   background: var(--soft);
   box-shadow: inset 3px 0 var(--accent);
@@ -2917,10 +2930,22 @@ summary:focus-visible,
   background: linear-gradient(90deg, #1a1a16 50%, #e6e5db 50%);
 }
 .colour-1 {
-  background: linear-gradient(90deg, #e6e5db 0 50%, #1a1a16 50% 66%, #f7ad01 66% 83%, #7b0001 83%);
+  background: linear-gradient(
+    90deg,
+    #e6e5db 0 50%,
+    #1a1a16 50% 66%,
+    #f7ad01 66% 83%,
+    #7b0001 83%
+  );
 }
 .colour-2 {
-  background: linear-gradient(90deg, #1a1a16 0 25%, #e6e5db 25% 50%, #f7ad01 50% 75%, #7b0001 75%);
+  background: linear-gradient(
+    90deg,
+    #1a1a16 0 25%,
+    #e6e5db 25% 50%,
+    #f7ad01 50% 75%,
+    #7b0001 75%
+  );
 }
 .app-v2 .save-bar .save-copy {
   min-height: 32px;
