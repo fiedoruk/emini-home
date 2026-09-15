@@ -1,6 +1,6 @@
 # Install emini Home
 
-This guide installs emini Home 0.4.2 on a **ZECTRIX NOTE4C Devkit** from a
+This guide installs emini Home 0.4.3 on a **ZECTRIX NOTE4C Devkit** from a
 computer, using Espressif's `esptool`. Most of the time goes into two full
 backups of the 16 MiB flash.
 
@@ -32,12 +32,12 @@ to the factory firmware has not yet been tried on a real NOTE4C.
   new terminal later, run the activate line again before the next esptool
   command.
 
-- From the [v0.4.2 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.2):
-  `emini-home-0.4.2-note4c.bin`, `emini-home-0.4.2-partition-table.bin`,
-  `emini-home-0.4.2-sdkconfig.txt` and `SHA256SUMS`.
-- A copy of this repository at tag `v0.4.2`, for `tools/preflight.py`.
+- From the [v0.4.3 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.3):
+  `emini-home-0.4.3-note4c.bin`, `emini-home-0.4.3-partition-table.bin`,
+  `emini-home-0.4.3-sdkconfig.txt` and `SHA256SUMS`.
+- A copy of this repository at tag `v0.4.3`, for `tools/preflight.py`.
   Download **Source code (zip)** from the same release and unpack it outside
-  your installation folder. It unpacks into a folder named `emini-home-0.4.2`.
+  your installation folder. It unpacks into a folder named `emini-home-0.4.3`.
 
 ## What changes on the device
 
@@ -66,8 +66,8 @@ shasum -a 256 -c SHA256SUMS
 On Linux use `sha256sum -c SHA256SUMS`. All three lines must end in `OK`. If a
 line says `FAILED` or a file is missing, download that file again and do not
 continue. On Windows, run
-`certutil -hashfile emini-home-0.4.2-note4c.bin SHA256` and
-`certutil -hashfile emini-home-0.4.2-partition-table.bin SHA256`, and compare
+`certutil -hashfile emini-home-0.4.3-note4c.bin SHA256` and
+`certutil -hashfile emini-home-0.4.3-partition-table.bin SHA256`, and compare
 each result with its line in `SHA256SUMS`.
 
 ## 2. Connect the NOTE4C and find its port
@@ -125,7 +125,7 @@ Run this from the installation folder, with the path to the unpacked source
 code (on Windows, type `py` instead of `python3`):
 
 ```sh
-python3 path/to/emini-home-0.4.2/tools/preflight.py note4c-backup-a.bin note4c-backup-b.bin emini-home-0.4.2-partition-table.bin emini-home-0.4.2-note4c.bin
+python3 path/to/emini-home-0.4.3/tools/preflight.py note4c-backup-a.bin note4c-backup-b.bin emini-home-0.4.3-partition-table.bin emini-home-0.4.3-note4c.bin
 ```
 
 The check reads the two backups, confirms they are identical and compares the
@@ -133,7 +133,7 @@ bootloader, boot selection data, partition table and the future settings area
 with the NOTE4C this release was tested on. It also checks that the partition
 table file is the emini Home table and that the application file is an emini
 Home image for the ESP32-S3, and prints the version stored in that image: the
-`Application file` line must say `0.4.2`. After `READY` it names the two files
+`Application file` line must say `0.4.3`. After `READY` it names the two files
 for step 6. It never connects to the device, and it cannot tell a monochrome
 NOTE4 from a NOTE4C, so continue only if your device has the four-colour
 display. Save the output next to your backups; its `Backup SHA-256` line
@@ -171,7 +171,7 @@ make a new, empty folder, put the four release files in it as in step 1, and
 start again from step 4 in that folder. Then write the two files:
 
 ```sh
-esptool --chip esp32s3 -p PORT -b 460800 --after no-reset write-flash --flash-mode keep --flash-size keep --flash-freq keep 0x8000 emini-home-0.4.2-partition-table.bin 0x20000 emini-home-0.4.2-note4c.bin
+esptool --chip esp32s3 -p PORT -b 460800 --after no-reset write-flash --flash-mode keep --flash-size keep --flash-freq keep 0x8000 emini-home-0.4.3-partition-table.bin 0x20000 emini-home-0.4.3-note4c.bin
 ```
 
 `keep` stops esptool from changing the flash settings stored in the bootloader.
@@ -181,7 +181,7 @@ factory firmware. Keep the cable connected until the command finishes.
 ## 7. Verify what was written
 
 ```sh
-esptool --chip esp32s3 -p PORT --after no-reset verify-flash 0x8000 emini-home-0.4.2-partition-table.bin 0x20000 emini-home-0.4.2-note4c.bin
+esptool --chip esp32s3 -p PORT --after no-reset verify-flash 0x8000 emini-home-0.4.3-partition-table.bin 0x20000 emini-home-0.4.3-note4c.bin
 ```
 
 Both regions must report that the digest matched. If one does not, do not

@@ -2,7 +2,7 @@
 
 **A calm, four-colour poster of your day for the ZECTRIX NOTE4C e-paper devkit.**
 
-`0.4.2` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
+`0.4.3` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
   <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.4.0. The Weather screen in the Print composition shows 15° in Czaplinek, 14–17 °C over 24 hours, cloud cover, and rain from 21:00 to 23:00.">
@@ -15,10 +15,10 @@ yellow pigments. You set it up in your phone's browser, without an app or an
 account. After that the device does the rest on its own, and no emini.ink
 server sits in between.
 
-[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.4.2](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.2) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
+[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.4.3](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.3) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
 
 > [!WARNING]
-> Version 0.4.2 has been installed and tested on one NOTE4C. Read the
+> Version 0.4.3 has been installed and tested on one NOTE4C. Read the
 > [status](#status) before you install. The preflight check in the
 > installation guide tells you to stop if your device's boot data differs
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
@@ -30,7 +30,7 @@ server sits in between.
   <img src="docs/images/epaper-weather-rhythm.png" width="400" alt="Rhythm composition: a sample forecast for Warsaw with a dithered temperature curve for the next hours">
   <img src="docs/images/epaper-weather-atlas.png" width="400" alt="Atlas composition: the same sample forecast with a large sun and cloud on the left half">
 </p>
-<p align="center"><sub>Rhythm and Atlas, drawn on a computer by the 0.4.2 renderer from sample data. The photo at the top shows Print.</sub></p>
+<p align="center"><sub>Rhythm and Atlas, drawn on a computer by the 0.4.3 renderer from sample data. The photo at the top shows Print.</sub></p>
 
 Rhythm draws the coming hours as a curve, and Atlas gives the sky half of the
 page. Each screen can keep one composition, or use **In turn** and move on to
@@ -85,14 +85,14 @@ goes into two full backups. In short:
 1. Back up the whole flash twice.
 2. Run [`tools/preflight.py`](tools/preflight.py) on the backups. It compares
    them with the tested NOTE4C and says `READY` or `STOP`.
-3. Write two files from the [0.4.2 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.2):
+3. Write two files from the [0.4.3 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.3):
    the partition table at `0x8000` and the application at `0x20000`. The
    bootloader and factory data stay untouched.
 4. Verify, start and continue on your phone.
 
 ## Status
 
-Where 0.4.2 stands:
+Where 0.4.3 stands:
 
 - **Tested on one NOTE4C Devkit** (ESP32-S3, 16 MiB flash, factory partition
   layout). This release was written and verified on that unit with the

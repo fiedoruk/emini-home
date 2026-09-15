@@ -303,6 +303,13 @@ static bool scan_step(int64_t now, bool online)
         esp_wifi_clear_ap_list();
     return scan_active;
 }
+/* Set from the SNTP callback once a server has actually set the clock. */
+static volatile bool sntp_synced;
+static void on_sntp_sync(struct timeval *tv)
+{
+    (void)tv;
+    sntp_synced = true;
+}
 esp_err_t home_network_start(void)
 {
     esp_err_t e = esp_netif_init();
@@ -354,6 +361,7 @@ esp_err_t home_network_start(void)
     esp_sntp_config_t ntp = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     ntp.start = true;
     ntp.wait_for_sync = false;
+    ntp.sync_cb = on_sntp_sync;
     if ((e = esp_netif_sntp_init(&ntp)) != ESP_OK)
         return e;
     home_network_apply();
@@ -456,7 +464,11 @@ void home_sources_task(void *unused)
         *d = home_runtime.data;
         int32_t offset;
         bool dst;
-        bool valid_clock = now >= 1704067200 && home_tz_offset_at(c->timezone, now, &offset, &dst);
+        /* The clock counts only once SNTP has set it. A time carried over a reset by the
+         * RTC can be minutes off, and data stamped with it would sit "in the future"
+         * after the sync, showing "Age unknown" on every screen (seen 15.09.2026). */
+        bool valid_clock =
+            sntp_synced && now >= 1704067200 && home_tz_offset_at(c->timezone, now, &offset, &dst);
         bool clock_changed = home_runtime.time_valid != valid_clock;
         home_runtime.time_valid = valid_clock;
         if (clock_changed) {

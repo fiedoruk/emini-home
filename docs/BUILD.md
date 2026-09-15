@@ -63,16 +63,16 @@ or a newer time zone release, please open an issue.
 
 The release configuration is `firmware/sdkconfig.defaults`, expanded by
 ESP-IDF v6.0 into the full `sdkconfig` that is attached to the
-[v0.4.2 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.2)
+[v0.4.3 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.3)
 for reference.
 
 Your application image will not be byte-identical to the release image,
 because ESP-IDF stores the build date and time inside it. Everything else
-should be. To check, download `emini-home-0.4.2-note4c.bin` from the release
+should be. To check, download `emini-home-0.4.3-note4c.bin` from the release
 into the `firmware` folder and run, still from `firmware`:
 
 ```sh
-python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.4.2-note4c.bin
+python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.4.3-note4c.bin
 ```
 
 `MATCH` means the two images differ only in the build timestamp and the

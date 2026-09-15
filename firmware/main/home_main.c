@@ -275,9 +275,10 @@ void app_main(void)
         int current = home_runtime.displayed_screen;
         int phase = home_runtime.phase;
         int64_t manual = home_runtime.manual_until, last_switch = home_runtime.last_switch;
+        bool clock_synced = home_runtime.time_valid; /* SNTP has set the clock (sources task) */
         home_unlock();
         struct tm local;
-        bool valid = now >= 1704067200 && home_localtime(c, now, &local);
+        bool valid = clock_synced && now >= 1704067200 && home_localtime(c, now, &local);
         bool quiet = valid && home_is_quiet(c, &local);
         if (!setup && screen < 0)
             screen = current >= 0 ? current : 0;
