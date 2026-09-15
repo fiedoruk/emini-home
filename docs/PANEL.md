@@ -29,6 +29,14 @@ window by holding **OK / BOOT for 2 seconds**. It stays open for 5 minutes.
    on. If all four connections are taken and you no longer have one of those
    browsers, see [starting over](INSTALL.md#starting-over).
 
+**Where the panel lives afterwards.** The **emini.ink** network and
+`http://192.168.4.1` exist only while the setup window is open, for 5 minutes.
+Once Home is on your home Wi-Fi, the panel is always there at the device's own
+address, shown in **Settings → Your device** and on the **Continue on your home
+network** card: for example `http://192.168.1.23`, or `http://home-1a2b.local`
+on phones that resolve `.local` names. Bookmark it; you do not need the button
+for everyday use.
+
 <p align="center"><img src="images/epaper-setup.png" width="400" alt="Setup screen on the display"></p>
 
 ## 2. Bring the device onto your Wi-Fi
@@ -158,8 +166,11 @@ name before you share it; the setup screen cannot be downloaded.
 
 ## Good to know
 
-- On the device, **Up** and **Down** switch between screens, and a short press
-  on **OK / BOOT** switches the display language between English and Polish.
+- On the device, **Up** and **Down** switch between screens. A short press on
+  **OK / BOOT** switches the display language between English and Polish, or
+  does the job you choose in **Settings → Preferences**: check for updates,
+  hold the current screen (press again to resume) or open the setup window.
+  Holding OK / BOOT for 2 seconds always opens the setup window.
   On a screen set to **In turn**, Down and Up first step through its three
   compositions and then move to the next screen.
 - The panel talks to the device over HTTP on your local network. Use it on a

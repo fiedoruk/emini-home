@@ -218,6 +218,12 @@
       preferences: "Your preferences",
       name: "Name of your Home",
       language: "Display language",
+      okAction: "Short press of OK / BOOT",
+      okLanguage: "Switch the display language",
+      okRefresh: "Check for updates now",
+      okHold: "Hold the current screen (press again to resume)",
+      okSetup: "Open the setup window (Wi-Fi and pairing)",
+      okHelp: "Holding OK / BOOT for 2 seconds always opens the setup window.",
       units: "Temperature",
       timezone: "Time zone",
       clock: "24-hour clock",
@@ -470,6 +476,13 @@
       preferences: "Twoje preferencje",
       name: "Nazwa Twojego Home",
       language: "Język ekranu",
+      okAction: "Krótkie naciśnięcie OK / BOOT",
+      okLanguage: "Przełącz język ekranu",
+      okRefresh: "Sprawdź aktualizacje",
+      okHold: "Zatrzymaj bieżący ekran (drugie naciśnięcie wznawia)",
+      okSetup: "Otwórz okno konfiguracji (Wi-Fi i parowanie)",
+      okHelp:
+        "Przytrzymanie OK / BOOT przez 2 sekundy zawsze otwiera okno konfiguracji.",
       units: "Temperatura",
       timezone: "Strefa czasu",
       clock: "Zegar 24-godzinny",
@@ -1037,7 +1050,12 @@
         ["en", "English"],
         ["pl", "Polski"],
       ],
-    )}${select("units", "units", [
+    )}${select("ok_action", "okAction", [
+      ["language", t("okLanguage")],
+      ["refresh", t("okRefresh")],
+      ["hold", t("okHold")],
+      ["setup", t("okSetup")],
+    ])}<p class="hint">${t("okHelp")}</p>${select("units", "units", [
       ["C", "°C"],
       ["F", "°F"],
     ])}${select(
@@ -2427,6 +2445,7 @@
                       interval_min: t("interval"),
                       pause_min: t("pauseMinutes"),
                       cycle_min: t("cycleInterval"),
+                      ok_action: t("okAction"),
                       clock24: t("clock"),
                       weekdays: t("days"),
                     })[k] || t(k),

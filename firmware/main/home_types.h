@@ -35,6 +35,7 @@ typedef struct {
     uint8_t fixed_screen;
     uint16_t interval_min, pause_min;
     uint16_t cycle_min; /* "In turn": minutes per composition while a screen stays */
+    uint8_t ok_action;  /* short OK/BOOT: 0 language, 1 refresh, 2 hold, 3 setup window */
     bool quiet_enabled;
     uint16_t quiet_start, quiet_end;
     uint8_t weekdays; /* Monday bit0 */

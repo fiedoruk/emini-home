@@ -11,7 +11,7 @@ that depend on that timestamp and compares everything else:
   - app description: SHA-256 of the ELF file (0xB0, 32 bytes)
   - image footer: checksum byte and image SHA-256 (last 33 bytes)
 
-    python3 tools/compare_image.py firmware/build/emini_home_g3.bin emini-home-0.4.3-note4c.bin
+    python3 tools/compare_image.py firmware/build/emini_home_g3.bin emini-home-0.4.4-note4c.bin
 
 Exit code 0 means MATCH and 1 means MISMATCH. Exit code 2 means ERROR: the
 comparison did not run, because a file could not be read or the arguments

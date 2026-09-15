@@ -101,12 +101,30 @@ static void action(int key)
                                                    : home_runtime.displayed_screen;
     if (current < 0)
         current = 0;
+    bool pause = true; /* a press normally holds automatic changes for pause_min */
     if (key == 4) {
-        home_config_t c = home_runtime.config;
-        strcpy(c.locale, !strcmp(c.locale, "en") ? "pl" : "en");
-        c.revision++;
-        if (home_store_config(&c) == ESP_OK)
-            home_runtime.config = c;
+        /* Short OK/BOOT: the job chosen in the panel (Settings > Preferences). */
+        uint8_t what = home_runtime.config.ok_action;
+        if (what == 3) { /* setup window, like the long press */
+            home_unlock();
+            home_begin_pairing();
+            ESP_LOGI(TAG, "Physical short release key=4: setup window");
+            return;
+        } else if (what == 1) { /* fetch weather and the headline now */
+            home_runtime.refresh_requested |= home_runtime.config.feed_url[0] ? 3U : 1U;
+            pause = false;
+        } else if (what == 2) { /* hold the current screen, or resume when already held */
+            if (home_runtime.manual_until > now) {
+                home_runtime.manual_until = now;
+                pause = false;
+            }
+        } else {
+            home_config_t c = home_runtime.config;
+            strcpy(c.locale, !strcmp(c.locale, "en") ? "pl" : "en");
+            c.revision++;
+            if (home_store_config(&c) == ESP_OK)
+                home_runtime.config = c;
+        }
     } else {
         /* On an "In turn" screen, Down and Up first walk through its three compositions. */
         int shown = home_runtime.displayed_screen;
@@ -144,7 +162,8 @@ static void action(int key)
     home_runtime.setup = false;
     home_runtime.dirty = true;
     home_runtime.request_id++;
-    home_runtime.manual_until = now + (int64_t)home_runtime.config.pause_min * 60000000;
+    if (pause)
+        home_runtime.manual_until = now + (int64_t)home_runtime.config.pause_min * 60000000;
     home_unlock();
     ESP_LOGI(TAG, "Physical short release key=%d", key);
 }

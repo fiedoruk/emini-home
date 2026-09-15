@@ -68,6 +68,7 @@
     "interval_min",
     "pause_min",
     "cycle_min",
+    "ok_action",
     "day",
     "quiet",
     "weekdays",
@@ -540,6 +541,12 @@
       Number.isInteger(c.pause_min) && c.pause_min >= 0 && c.pause_min <= 240,
     );
     check(
+      "ok_action",
+      (recipe && !has("ok_action")) ||
+        c.ok_action === undefined ||
+        ["language", "refresh", "hold", "setup"].includes(c.ok_action),
+    );
+    check(
       "cycle_min",
       (recipe && !has("cycle_min")) ||
         (Number.isInteger(c.cycle_min) &&
@@ -619,7 +626,7 @@
     const out = { schema: 1 };
     for (const k of recipeKeys) {
       if (!Object.prototype.hasOwnProperty.call(raw, k)) {
-        if (k === "cycle_min") continue; // recipes from before 0.4.0; Home keeps its value
+        if (k === "cycle_min" || k === "ok_action") continue; // older recipes; Home keeps its value
         throw new Error("recipe_missing");
       }
       out[k] = clone(raw[k]);

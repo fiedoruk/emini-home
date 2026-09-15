@@ -89,6 +89,7 @@ void home_config_defaults(home_config_t *c)
     c->interval_min = 30;
     c->pause_min = 60;
     c->cycle_min = 30;
+    c->ok_action = 0;
     c->quiet_enabled = true;
     c->quiet_start = 1350;
     c->quiet_end = 420;
@@ -168,6 +169,8 @@ static bool boolean(const cJSON *j, const char *k, bool *out)
     *out = cJSON_IsTrue(v);
     return true;
 }
+/* Short OK/BOOT press: what it does (index = home_config_t.ok_action). */
+static const char *const ok_actions[] = {"language", "refresh", "hold", "setup"};
 static int choice(const cJSON *j, const char *k, const char *const *values, int count)
 {
     cJSON *v = get(j, k);
@@ -207,11 +210,12 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
         "location", "latitude", "longitude",    "note",         "location_ready", "feed_url",
         "enabled",  "order",    "styles",       "texture",      "intensity",      "large_text",
         "clock24",  "mode",     "fixed_screen", "interval_min", "pause_min",      "quiet",
-        "weekdays", "day",      "cycle_min"};
+        "weekdays", "day",      "cycle_min",    "ok_action"};
     static const char *const public_keys[] = {
-        "schema",       "locale",    "units",      "enabled",  "order", "styles",
-        "texture",      "intensity", "large_text", "clock24",  "mode",  "fixed_screen",
-        "interval_min", "pause_min", "quiet",      "weekdays", "day",   "cycle_min"};
+        "schema",   "locale",       "units",        "enabled",    "order",
+        "styles",   "texture",      "intensity",    "large_text", "clock24",
+        "mode",     "fixed_screen", "interval_min", "pause_min",  "quiet",
+        "weekdays", "day",          "cycle_min",    "ok_action"};
 #define REQUIRE(condition, why)                                                                    \
     do {                                                                                           \
         if (!(condition)) {                                                                        \
@@ -309,6 +313,11 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
     if (get(j, "cycle_min")) {
         REQUIRE(integer(j, "cycle_min", 5, 1440, &n), "Composition minimum is five minutes");
         c.cycle_min = n;
+    }
+    if (get(j, "ok_action")) { /* optional since 0.4.4 */
+        n = choice(j, "ok_action", ok_actions, 4);
+        REQUIRE(n >= 0, "Invalid OK button action");
+        c.ok_action = (uint8_t)n;
     }
     REQUIRE(integer(j, "weekdays", 1, 127, &n), "Select at least one weekday");
     c.weekdays = n;
@@ -408,6 +417,8 @@ cJSON *home_config_json(const home_config_t *c, bool recipe)
     JSON_NEED(cJSON_AddNumberToObject(j, "interval_min", c->interval_min));
     JSON_NEED(cJSON_AddNumberToObject(j, "pause_min", c->pause_min));
     JSON_NEED(cJSON_AddNumberToObject(j, "cycle_min", c->cycle_min));
+    JSON_NEED(
+        cJSON_AddStringToObject(j, "ok_action", ok_actions[c->ok_action < 4 ? c->ok_action : 0]));
     JSON_NEED(cJSON_AddNumberToObject(j, "weekdays", c->weekdays));
     cJSON *q = cJSON_AddObjectToObject(j, "quiet");
     JSON_NEED(q);
