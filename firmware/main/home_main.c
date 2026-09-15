@@ -78,16 +78,27 @@ static int keys(void)
 }
 /* "In turn" compositions: appearances per screen and when the current one started.
  * Only the main task (loop and action) touches these. */
-static uint32_t cycle_showing[3];
-static int64_t cycle_at[3];
+static uint32_t cycle_showing[HOME_SCREEN_COUNT];
+static int64_t cycle_at[HOME_SCREEN_COUNT];
 /* A screen whose card does not depend on the composition (no data yet). */
 static bool screen_has_data(int s)
 {
     const home_config_t *c = &home_runtime.config;
     const home_data_t *d = &home_runtime.data;
-    return s == 0   ? c->location_ready && d->weather.meta.valid
-           : s == 1 ? d->feed.meta.valid
-                    : c->note[0] != 0;
+    switch (s) {
+    case HOME_WEATHER:
+        return c->location_ready && d->weather.meta.valid;
+    case HOME_FEED:
+        return d->feed.meta.valid;
+    case HOME_NOTE:
+        return c->note[0] != 0;
+    case HOME_SKY:
+        return c->location_ready; /* computed on the device, nothing to download */
+    case HOME_AIR:
+        return c->location_ready && d->air.meta.valid;
+    default:
+        return false;
+    }
 }
 static void action(int key)
 {
@@ -110,8 +121,12 @@ static void action(int key)
             home_begin_pairing();
             ESP_LOGI(TAG, "Physical short release key=4: setup window");
             return;
-        } else if (what == 1) { /* fetch weather and the headline now */
-            home_runtime.refresh_requested |= home_runtime.config.feed_url[0] ? 3U : 1U;
+        } else if (what == 1) { /* fetch weather, the headline and the air now */
+            home_runtime.refresh_requested |= 1U;
+            if (home_runtime.config.feed_url[0])
+                home_runtime.refresh_requested |= 2U;
+            if (home_runtime.config.enabled[HOME_AIR] && home_runtime.config.location_ready)
+                home_runtime.refresh_requested |= 4U;
             pause = false;
         } else if (what == 2) { /* hold the current screen, or resume when already held */
             if (home_runtime.manual_until > now) {
@@ -131,7 +146,7 @@ static void action(int key)
         int step = key == 2 ? 1 : -1;
         int showing =
             shown >= 0 && cycle_showing[shown] ? (int)((cycle_showing[shown] - 1) % 3) : 0;
-        if (shown >= 0 && shown < 3 && shown == current &&
+        if (shown >= 0 && shown < HOME_SCREEN_COUNT && shown == current &&
             home_runtime.config.style[shown] == HOME_CYCLE && screen_has_data(shown) &&
             showing + step >= 0 && showing + step <= 2) {
             cycle_showing[shown] = (uint32_t)(showing + step + 1);
@@ -139,11 +154,13 @@ static void action(int key)
             home_runtime.pending_screen = shown;
         } else {
             int pos = 0;
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < HOME_SCREEN_COUNT; i++)
                 if (home_runtime.config.order[i] == current)
                     pos = i;
-            for (int n = 1; n <= 3; n++) {
-                int pick = home_runtime.config.order[(pos + (key == 2 ? n : 3 - n)) % 3];
+            for (int n = 1; n <= HOME_SCREEN_COUNT; n++) {
+                int pick =
+                    home_runtime.config
+                        .order[(pos + (key == 2 ? n : HOME_SCREEN_COUNT - n)) % HOME_SCREEN_COUNT];
                 if (home_runtime.config.enabled[pick]) {
                     home_runtime.pending_screen = pick;
                     if (home_runtime.config.style[pick] == HOME_CYCLE) {
@@ -216,6 +233,28 @@ void app_main(void)
     home_runtime.dirty = true;
     home_runtime.request_id++;
     ESP_ERROR_CHECK(home_panel_init());
+#ifdef HOME_TESTCARD
+    /* Measurement build (plan 0.5.0 step 0.1): show the test cards and stop
+     * here, before any network. Any key advances to the next card. */
+    for (int card = 0;; card = (card + 1) % HOME_TESTCARDS) {
+        home_render_testcard(card, work);
+        ESP_LOGI(TAG, "TESTCARD %d of %d", card + 1, HOME_TESTCARDS);
+        esp_err_t shown = home_panel_show(work, HOME_FRAME_BYTES);
+        if (shown != ESP_OK) {
+            ESP_LOGE(TAG, "TESTCARD panel refresh failed: %s", esp_err_to_name(shown));
+            for (;;)
+                vTaskDelay(portMAX_DELAY);
+        }
+        while (keys())
+            vTaskDelay(pdMS_TO_TICKS(50));
+        do {
+            vTaskDelay(pdMS_TO_TICKS(50));
+        } while (!keys());
+        vTaskDelay(pdMS_TO_TICKS(50));
+        while (keys())
+            vTaskDelay(pdMS_TO_TICKS(50));
+    }
+#endif
     ESP_ERROR_CHECK(home_network_start());
     esp_err_t discovery = home_discovery_start(home_runtime.secrets.ap_ssid);
     if (discovery == ESP_OK) {
@@ -313,8 +352,9 @@ void app_main(void)
             last_minute = now / 60;
             home_lock();
             home_source_meta_t *meta[] = {&home_runtime.data.weather.meta,
-                                          &home_runtime.data.feed.meta};
-            for (int i = 0; i < 2; i++)
+                                          &home_runtime.data.feed.meta,
+                                          &home_runtime.data.air.meta};
+            for (int i = 0; i < 3; i++)
                 if (meta[i]->valid && meta[i]->expires_at < now && meta[i]->state == HOME_READY) {
                     meta[i]->state = HOME_STALE;
                     home_runtime.dirty = true;
@@ -330,7 +370,8 @@ void app_main(void)
          * cycle_min while it stays on the display. The timer waits for valid time,
          * the manual pause and quiet hours. Choosing In turn for the screen on the
          * display starts the timer without redrawing (Save does not publish). */
-        bool cycle = !setup && screen >= 0 && screen < 3 && c->style[screen] == HOME_CYCLE;
+        bool cycle =
+            !setup && screen >= 0 && screen < HOME_SCREEN_COUNT && c->style[screen] == HOME_CYCLE;
         if (cycle && screen == current && !cycle_at[screen]) {
             cycle_at[screen] = mono;
             cycle_showing[screen] = 1;

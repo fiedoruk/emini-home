@@ -15,6 +15,7 @@ address from any of these requests.
 | Service | Sent by | When | What it receives |
 | --- | --- | --- | --- |
 | [MET Norway](https://api.met.no/) weather API | Home | when the last forecast expires, as MET Norway sets it | the saved forecast location, cut to 4 decimal places, plus your home IP address |
+| [Open-Meteo Air Quality API](https://open-meteo.com/en/terms) | Home | only while the Air screen is switched on, about once an hour | the saved location, cut to 4 decimal places, plus your home IP address |
 | Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | when the last copy of the feed expires | a request for that feed, plus your home IP address |
 | [FreeIPAPI](https://freeipapi.com/) | Home | when the panel asks Home for an approximate location | your home IP address, which it uses to estimate a location |
 | [Open-Meteo Geocoding API](https://open-meteo.com/en/terms) | your phone's browser, from the panel | only when you search for a town | the text you typed, your phone's IP address and ordinary browser request data |
@@ -48,7 +49,9 @@ There is no GPS. You can set the place for the weather in two ways.
    estimate.
 
 Whichever way you choose, the saved location becomes the forecast location
-that Home sends to MET Norway.
+that Home sends to MET Norway. While the Air screen is switched on, Home sends
+the same coordinates to the Open-Meteo Air Quality API about once an hour, for
+air quality, UV and pollen. Switch that screen off and Home stops asking.
 
 ## On your local network
 

@@ -96,7 +96,7 @@ static void events(void *arg, esp_event_base_t base, int32_t id, void *data)
             strcpy(wifi_error, "connection_lost");
         next_connect = esp_timer_get_time() + INT64_C(15000000);
         home_unlock();
-        ESP_LOGW(TAG, "Station offline; retry scheduled");
+        ESP_LOGW(TAG, "Station offline (reason %d: %s); retry scheduled", event->reason, wifi_error);
     }
 }
 esp_err_t home_network_credentials(const char *ssid, const char *password)
@@ -336,6 +336,13 @@ esp_err_t home_network_start(void)
         return e;
     if ((e = esp_wifi_set_mode(WIFI_MODE_APSTA)) != ESP_OK)
         return e;
+    /* Scan and join on channels 1-13, not only 1-11 of the world-safe default: European
+     * routers pick 12 and 13 by themselves, and a station that never looks there reports
+     * "network not found" for a network everyone else sees (15.09.2026). The policy stays
+     * AUTO, so once associated the station follows the country its access point announces. */
+    wifi_country_t country = {.cc = "01", .schan = 1, .nchan = 13, .policy = WIFI_COUNTRY_POLICY_AUTO};
+    if ((e = esp_wifi_set_country(&country)) != ESP_OK)
+        return e;
     wifi_config_t ap = {0};
     ap.ap.ssid_len = strlen(home_runtime.ssid);
     memcpy(ap.ap.ssid, home_runtime.ssid, ap.ap.ssid_len);
@@ -387,6 +394,8 @@ void home_network_apply(void)
     if (!has_ssid)
         return;
     config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN; /* every channel, then the strongest match */
+    config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     config.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
     config.sta.pmf_cfg.capable = true;
     esp_wifi_disconnect();
@@ -535,12 +544,29 @@ void home_sources_task(void *unused)
             }
             home_unlock();
         }
+        /* Air only when its screen is on: a screen nobody shows must not send the
+         * coordinates anywhere. Same worker, so never two connections at once. */
+        if (c->enabled[HOME_AIR] && c->location_ready && now >= d->air.meta.next_fetch) {
+            home_fetch_air(c, &d->air, now);
+            home_lock();
+            if (home_runtime.config.latitude == c->latitude &&
+                home_runtime.config.longitude == c->longitude &&
+                home_runtime.config.enabled[HOME_AIR]) {
+                home_runtime.data.air = d->air;
+                home_runtime.refresh_requested &= ~4U;
+                home_runtime.dirty = true;
+                home_runtime.request_id++;
+                changed = true;
+            }
+            home_unlock();
+        }
         if (changed) {
             home_lock();
             esp_err_t e = home_store_data(&home_runtime.data, &home_runtime.config);
             home_unlock();
-            ESP_LOGI(TAG, "Source cycle complete; weather=%d feed=%d persistence=%s",
-                     d->weather.meta.state, d->feed.meta.state, esp_err_to_name(e));
+            ESP_LOGI(TAG, "Source cycle complete; weather=%d feed=%d air=%d persistence=%s",
+                     d->weather.meta.state, d->feed.meta.state, d->air.meta.state,
+                     esp_err_to_name(e));
         }
         home_lock();
         home_runtime.source_active = false;

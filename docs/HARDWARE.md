@@ -1,6 +1,6 @@
 # Hardware
 
-emini Home 0.4.4 supports one device: the **ZECTRIX NOTE4C Devkit** with the
+emini Home 0.5.0 supports one device: the **ZECTRIX NOTE4C Devkit** with the
 four-colour display.
 
 | Part | Details |

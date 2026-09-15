@@ -75,6 +75,19 @@ static void command(char *line, size_t length)
             message = home_network_credentials(s->valuestring, p->valuestring) == ESP_OK
                           ? "accepted"
                           : "settings_not_saved";
+    } else if (!strcmp(op->valuestring, "scan")) {
+        /* Diagnostic over the attached cable: what the radio sees (same scan the
+         * setup panel uses). "scan" starts it; "networks" a few seconds later
+         * returns the list, or the state of a scan still running. */
+        esp_err_t e = home_network_scan_start();
+        message = e == ESP_OK ? "started" : "busy";
+    } else if (!strcmp(op->valuestring, "networks")) {
+        cJSON *list = home_network_scan_json();
+        if (list) {
+            cJSON_AddItemToObject(reply, "networks", list);
+            message = "ok";
+        } else
+            message = "no_scan";
     } else if (!strcmp(op->valuestring, "quiesce")) {
         home_lock();
         home_runtime.maintenance = true;

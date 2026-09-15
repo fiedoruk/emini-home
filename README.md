@@ -2,23 +2,23 @@
 
 **A calm, four-colour poster of your day for the ZECTRIX NOTE4C e-paper devkit.**
 
-`0.4.4` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
+`0.5.0` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
   <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.4.0. The Weather screen in the Print composition shows 15° in Czaplinek, 14–17 °C over 24 hours, cloud cover, and rain from 21:00 to 23:00.">
 </p>
 <p align="center"><sub>Photo of a NOTE4C running 0.4.0 · Weather in the Print composition</sub></p>
 
-emini Home puts the weather forecast, one headline and a note in your own
-words on the NOTE4C's 400 × 300 display, using its black, white, red and
+emini Home puts the weather forecast, one headline, a note in your own words,
+the sky above you and the air you breathe on the NOTE4C's 400 × 300 display, using its black, white, red and
 yellow pigments. You set it up in your phone's browser, without an app or an
 account. After that the device does the rest on its own, and no emini.ink
 server sits in between.
 
-[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.4.4](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.4) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
+[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.5.0](https://github.com/fiedoruk/emini-home/releases/tag/v0.5.0) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
 
 > [!WARNING]
-> Version 0.4.4 has been installed and tested on one NOTE4C. Read the
+> Version 0.5.0 has been installed and tested on one NOTE4C. Read the
 > [status](#status) before you install. The preflight check in the
 > installation guide tells you to stop if your device's boot data differs
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
@@ -27,10 +27,10 @@ server sits in between.
 ## One forecast, three compositions
 
 <p align="center">
-  <img src="docs/images/epaper-weather-rhythm.png" width="400" alt="Rhythm composition: a sample forecast for Warsaw with a dithered temperature curve for the next hours">
+  <img src="docs/images/epaper-weather-rhythm.png" width="400" alt="Rhythm composition: a sample forecast for Lisbon with a dithered temperature curve for the next hours">
   <img src="docs/images/epaper-weather-atlas.png" width="400" alt="Atlas composition: the same sample forecast with a large sun and cloud on the left half">
 </p>
-<p align="center"><sub>Rhythm and Atlas, drawn on a computer by the 0.4.4 renderer from sample data. The photo at the top shows Print.</sub></p>
+<p align="center"><sub>Rhythm and Atlas, drawn on a computer by the 0.5.0 renderer from sample data. The photo at the top shows Print.</sub></p>
 
 Rhythm draws the coming hours as a curve, and Atlas gives the sky half of the
 page. Each screen can keep one composition, or use **In turn** and move on to
@@ -42,6 +42,29 @@ There is no grey on this display, so the renderer mixes the four pigments in
 ordered dither patterns to draw warmth, light and cloud. Coloured patterns are
 never finer than 2 pixels, while black and paper patterns can still use single
 pixels.
+
+## Sky and Air
+
+Two more screens arrived in 0.5.0, both switched off until you enable them in the panel.
+**Sky** shows sunrise, sunset, the length of the day and the Moon's phase, worked out on the
+device from your saved location; nothing is downloaded for it. **Air** shows the European
+air quality index, PM2.5 over the next 24 hours, the UV index with a sunscreen hint and,
+in Europe, four pollens, from Open-Meteo's Air Quality service (CC BY 4.0). Each has the
+same three compositions as the weather.
+
+<p align="center">
+  <img src="docs/images/epaper-sky-print.png" width="400" alt="The Sky screen in the Print composition: the sunset time in large type, the length of the day, a warm dome with the sun in its current position and a strip of the whole day from night through dawn, day and dusk">
+  <img src="docs/images/epaper-air-print.png" width="400" alt="The Air screen in the Print composition: the European air quality index in large type, the word Good, 24 hourly bars on a warm scale, a UV sun, the UV line and four pollen tiles">
+</p>
+<p align="center"><sub>Sky (Warsaw, equinox) and Air (Berlin, May), drawn from sample data by the 0.5.0 renderer</sub></p>
+
+## Your brush
+
+Four pigments and no grey mean every tone on this display is a pattern. Since 0.5.0 the
+panel lets you choose the brush that paints it, in Settings → Appearance: grain (blue noise,
+the default), halftone dots, or the ordered grid of the earlier versions. The renderer was measured on a real NOTE4C with test
+cards before this release; yellow needs two pixels to exist at all, so no brush ever draws
+it finer.
 
 ## One headline and your note
 
@@ -80,21 +103,25 @@ The [phone panel guide](docs/PANEL.md) walks through every step.
 
 ## Install
 
-You need a NOTE4C, a USB-C data cable and `esptool` on your computer. The
+The short way is the web installer at [esp32ai.me/install](https://esp32ai.me/install):
+open it in Chrome or Edge, plug the NOTE4C in with a USB-C data cable and give it the
+firmware, either as a file you downloaded from the release or as a link to it.
+
+The careful way needs `esptool` and a terminal. The
 [installation guide](docs/INSTALL.md) has eight steps, and most of the time
 goes into two full backups. In short:
 
 1. Back up the whole flash twice.
 2. Run [`tools/preflight.py`](tools/preflight.py) on the backups. It compares
    them with the tested NOTE4C and says `READY` or `STOP`.
-3. Write two files from the [0.4.4 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.4):
+3. Write two files from the [0.5.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.5.0):
    the partition table at `0x8000` and the application at `0x20000`. The
    bootloader and factory data stay untouched.
 4. Verify, start and continue on your phone.
 
 ## Status
 
-Where 0.4.4 stands:
+Where 0.5.0 stands:
 
 - **Tested on one NOTE4C Devkit** (ESP32-S3, 16 MiB flash, factory partition
   layout). This release was written and verified on that unit with the
@@ -122,13 +149,14 @@ helps the next person decide.
 ## Privacy
 
 Home talks to MET Norway for weather, to the news feed you choose, to FreeIPAPI
-for an approximate location and to public time servers. When you search for a
-town, your phone's browser sends the search to Open-Meteo. Each of these
-services sees an ordinary request from your internet address. Nothing goes to
-emini, and the firmware has no analytics. The panel runs over HTTP on your
-local network and settings are stored on the device without encryption, so
-keep the device on a network and in a home you trust. Details:
-[privacy](docs/PRIVACY.md).
+for an approximate location and to public time servers. While the Air screen is
+switched on, it also sends the saved coordinates to the Open-Meteo Air Quality
+API for air quality, UV and pollen. When you search for a town, your phone's
+browser sends the search to Open-Meteo. Each of these services sees an ordinary
+request from your internet address. Nothing goes to emini, and the firmware has
+no analytics. The panel runs over HTTP on your local network and settings are
+stored on the device without encryption, so keep the device on a network and in
+a home you trust. Details: [privacy](docs/PRIVACY.md).
 
 ## Build it yourself
 

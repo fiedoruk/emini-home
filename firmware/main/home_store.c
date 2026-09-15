@@ -129,11 +129,17 @@ esp_err_t home_store_init(home_config_t *c, home_data_t *d, home_secrets_t *s)
     if (e == ESP_ERR_NO_MEM)
         return e;
     if (p) {
+        /* A record written by another firmware has another cache_t size and is
+         * skipped whole; *d was cleared above, so every source starts empty
+         * rather than reading a field at the wrong offset. Adding Air in 0.5.0
+         * changes the size, so 0.4.x caches are dropped once, on first boot. */
         if (size == sizeof(cache_t)) {
             cache_t *cache = p;
             cache->feed_url[HOME_FEED_URL_BYTES - 1] = 0;
-            if (cache->latitude == c->latitude && cache->longitude == c->longitude)
+            if (cache->latitude == c->latitude && cache->longitude == c->longitude) {
                 d->weather = cache->data.weather;
+                d->air = cache->data.air;
+            }
             if (!strcmp(cache->feed_url, c->feed_url))
                 d->feed = cache->data.feed;
         }
@@ -161,6 +167,7 @@ esp_err_t home_store_init(home_config_t *c, home_data_t *d, home_secrets_t *s)
     s->ap_ssid[32] = 0;
     d->weather.meta.error[96] = 0;
     d->feed.meta.error[96] = 0;
+    d->air.meta.error[96] = 0;
     d->feed.title[256] = 0;
     d->feed.source[96] = 0;
     d->feed.url[512] = 0;
@@ -192,6 +199,8 @@ esp_err_t home_store_data(const home_data_t *d, const home_config_t *c)
         memset(&p->data.weather, 0, sizeof(p->data.weather));
     if (p->data.feed.meta.no_store)
         memset(&p->data.feed, 0, sizeof(p->data.feed));
+    if (p->data.air.meta.no_store)
+        memset(&p->data.air, 0, sizeof(p->data.air));
     esp_err_t e = put(1, p, sizeof(*p));
     free(p);
     return e;

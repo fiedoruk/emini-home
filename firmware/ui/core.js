@@ -33,7 +33,10 @@
   }
   const boot = createBootGuard(root);
   if (boot) root.HomeBoot = boot;
-  const screens = ["weather", "feed", "note"];
+  // Since 0.5.0 five screens; "sky" and "air" are off by default and come last.
+  // Settings and recipes written before 0.5.0 list only the first three (LEGACY).
+  const screens = ["weather", "feed", "note", "sky", "air"];
+  const LEGACY = 3;
   // "cycle" = Print, Rhythm and Atlas take turns (D-HOME-CC-18). Previews never send it.
   const styles = ["print", "rhythm", "atlas", "cycle"];
   const geocoder = "https://geocoding-api.open-meteo.com/v1/search";
@@ -69,6 +72,8 @@
     "pause_min",
     "cycle_min",
     "ok_action",
+    "air_main",
+    "brush",
     "day",
     "quiet",
     "weekdays",
@@ -547,6 +552,18 @@
         ["language", "refresh", "hold", "setup"].includes(c.ok_action),
     );
     check(
+      "air_main",
+      (recipe && !has("air_main")) ||
+        c.air_main === undefined ||
+        ["eu", "us", "pm25"].includes(c.air_main),
+    );
+    check(
+      "brush",
+      (recipe && !has("brush")) ||
+        c.brush === undefined ||
+        ["grain", "halftone", "grid"].includes(c.brush),
+    );
+    check(
       "cycle_min",
       (recipe && !has("cycle_min")) ||
         (Number.isInteger(c.cycle_min) &&
@@ -570,26 +587,29 @@
         c.interval_min >= 5 &&
         c.interval_min <= 1440,
     );
+    // Same shapes as home_config.c: three (before 0.5.0) or all five screens.
+    const listed = (x) =>
+      Array.isArray(x) && (x.length === LEGACY || x.length === screens.length);
     check(
       "enabled",
-      Array.isArray(c.enabled) &&
-        c.enabled.length === 3 &&
+      listed(c.enabled) &&
         c.enabled.every((x) => typeof x === "boolean") &&
         c.enabled.some(Boolean),
     );
     check(
       "order",
-      Array.isArray(c.order) &&
-        c.order.length === 3 &&
-        new Set(c.order).size === 3 &&
+      listed(c.order) &&
+        new Set(c.order).size === c.order.length &&
         c.order.every((s) => screens.includes(s)),
     );
     check(
       "styles",
       c.styles &&
         typeof c.styles === "object" &&
-        screens.every((s) => styles.includes(c.styles[s])) &&
-        Object.keys(c.styles).length === 3,
+        Object.keys(c.styles).every(
+          (s) => screens.includes(s) && styles.includes(c.styles[s]),
+        ) &&
+        screens.slice(0, LEGACY).every((s) => styles.includes(c.styles[s])),
     );
     const time = (x) =>
       typeof x === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(x);
@@ -604,7 +624,7 @@
     check(
       "day",
       Array.isArray(c.day) &&
-        c.day.length === 3 &&
+        c.day.length === 3 && // moments of the day, not screens
         c.day.every(
           (d, i) =>
             d &&
@@ -626,7 +646,14 @@
     const out = { schema: 1 };
     for (const k of recipeKeys) {
       if (!Object.prototype.hasOwnProperty.call(raw, k)) {
-        if (k === "cycle_min" || k === "ok_action") continue; // older recipes; Home keeps its value
+        // older recipes; Home keeps its value
+        if (
+          k === "cycle_min" ||
+          k === "ok_action" ||
+          k === "air_main" ||
+          k === "brush"
+        )
+          continue;
         throw new Error("recipe_missing");
       }
       out[k] = clone(raw[k]);
@@ -665,8 +692,13 @@
       c.intensity = 2;
       c.mode = "rotate";
       c.interval_min = 30;
-      c.enabled = [true, true, false];
-      c.order = ["weather", "feed", "note"];
+      // Public screens only, factory order; the length of the draft is kept.
+      c.enabled = c.enabled.map(
+        (_, i) => screens[i] === "weather" || screens[i] === "feed",
+      );
+      c.order = [...c.order].sort(
+        (a, b) => screens.indexOf(a) - screens.indexOf(b),
+      );
     } else throw new Error("profile");
     return c;
   }

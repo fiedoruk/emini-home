@@ -45,6 +45,8 @@ build needs nothing but ESP-IDF:
   Simplified Chinese glyphs from Noto Sans CJK SC Medium (GB 2312 level 1,
   3 866 codepoints with punctuation and full-width forms) at 12, 16, 22 and
   30 pixels.
+- `home_noise.h` holds the 64 × 64 blue-noise threshold mask of the renderer, written
+  by `tools/build_noise.py` (deterministic seed; the header records the SHA-256 of the mask).
 - `home_zones.c` holds 598 time zones compiled from the IANA Time Zone
   Database, release 2026c, with transitions up to the start of 2041.
 
@@ -63,16 +65,16 @@ or a newer time zone release, please open an issue.
 
 The release configuration is `firmware/sdkconfig.defaults`, expanded by
 ESP-IDF v6.0 into the full `sdkconfig` that is attached to the
-[v0.4.4 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.4.4)
+[v0.5.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.5.0)
 for reference.
 
 Your application image will not be byte-identical to the release image,
 because ESP-IDF stores the build date and time inside it. Everything else
-should be. To check, download `emini-home-0.4.4-note4c.bin` from the release
+should be. To check, download `emini-home-0.5.0-note4c.bin` from the release
 into the `firmware` folder and run, still from `firmware`:
 
 ```sh
-python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.4.4-note4c.bin
+python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.5.0-note4c.bin
 ```
 
 `MATCH` means the two images differ only in the build timestamp and the

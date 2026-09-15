@@ -5,17 +5,17 @@
 #include <stdio.h>
 #include <string.h>
 
-static const char *screens[] = {"weather", "feed", "note"};
+static const char *screens[] = {"weather", "feed", "note", "sky", "air"};
 static const char *styles[] = {"print", "rhythm", "atlas", "cycle"};
 static const char *modes[] = {"fixed", "day", "rotate"};
 const char *home_screen_name(int n)
 {
-    return n >= 0 && n < 3 ? screens[n] : "weather";
+    return n >= 0 && n < HOME_SCREEN_COUNT ? screens[n] : "weather";
 }
 int home_screen_index(const char *s)
 {
     if (s)
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < HOME_SCREEN_COUNT; i++)
             if (!strcmp(s, screens[i]))
                 return i;
     return -1;
@@ -77,10 +77,11 @@ void home_config_defaults(home_config_t *c)
     strcpy(c->location, "My location");
     strcpy(c->feed_url, "https://feeds.bbci.co.uk/news/world/rss.xml");
     c->location_ready = false;
-    for (int i = 0; i < 3; i++) {
-        c->enabled[i] = true;
+    for (int i = 0; i < HOME_SCREEN_COUNT; i++) {
+        /* Sky and Air are off out of the box and keep the first composition. */
+        c->enabled[i] = i <= HOME_NOTE;
         c->order[i] = i;
-        c->style[i] = i;
+        c->style[i] = i <= HOME_ATLAS ? i : HOME_PRINT;
     }
     c->texture = 1;
     c->intensity = 2;
@@ -90,6 +91,8 @@ void home_config_defaults(home_config_t *c)
     c->pause_min = 60;
     c->cycle_min = 30;
     c->ok_action = 0;
+    c->air_main = 0;
+    c->brush = 0;
     c->quiet_enabled = true;
     c->quiet_start = 1350;
     c->quiet_end = 420;
@@ -171,6 +174,13 @@ static bool boolean(const cJSON *j, const char *k, bool *out)
 }
 /* Short OK/BOOT press: what it does (index = home_config_t.ok_action). */
 static const char *const ok_actions[] = {"language", "refresh", "hold", "setup"};
+/* Air: which number is drawn large (index = home_config_t.air_main). */
+static const char *const air_mains[] = {"eu", "us", "pm25"};
+/* Brush (D-HOME-CC-23/25): tone structure of the large fields (index = home_config_t.brush).
+ * The line-based screens of the 0.5.0 pre-releases are still accepted and read as grain, so a
+ * record written by one of those builds still loads. */
+static const char *const brushes[] = {"grain", "halftone", "grid"};
+static const char *const brushes_legacy[] = {"engraving", "crosshatch", "auto"};
 static int choice(const cJSON *j, const char *k, const char *const *values, int count)
 {
     cJSON *v = get(j, k);
@@ -210,12 +220,13 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
         "location", "latitude", "longitude",    "note",         "location_ready", "feed_url",
         "enabled",  "order",    "styles",       "texture",      "intensity",      "large_text",
         "clock24",  "mode",     "fixed_screen", "interval_min", "pause_min",      "quiet",
-        "weekdays", "day",      "cycle_min",    "ok_action"};
+        "weekdays", "day",      "cycle_min",    "ok_action",    "air_main",       "brush"};
     static const char *const public_keys[] = {
         "schema",   "locale",       "units",        "enabled",    "order",
         "styles",   "texture",      "intensity",    "large_text", "clock24",
         "mode",     "fixed_screen", "interval_min", "pause_min",  "quiet",
-        "weekdays", "day",          "cycle_min",    "ok_action"};
+        "weekdays", "day",          "cycle_min",    "ok_action",  "air_main",
+        "brush"};
 #define REQUIRE(condition, why)                                                                    \
     do {                                                                                           \
         if (!(condition)) {                                                                        \
@@ -270,10 +281,12 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
     cJSON *a = get(j, "enabled"), *o = get(j, "order");
     bool any = false;
     unsigned seen = 0;
-    REQUIRE(cJSON_IsArray(a) && cJSON_GetArraySize(a) == 3 && cJSON_IsArray(o) &&
-                cJSON_GetArraySize(o) == 3,
-            "Expected three screens");
-    for (int i = 0; i < 3; i++) {
+    /* Settings and recipes written before 0.5.0 list the first three screens. */
+    int listed = cJSON_IsArray(a) ? cJSON_GetArraySize(a) : 0;
+    REQUIRE(cJSON_IsArray(a) && cJSON_IsArray(o) && (listed == 3 || listed == HOME_SCREEN_COUNT) &&
+                cJSON_GetArraySize(o) == listed,
+            "Expected three or five screens");
+    for (int i = 0; i < listed; i++) {
         cJSON *v = cJSON_GetArrayItem(a, i);
         REQUIRE(cJSON_IsBool(v), "Invalid enabled screens");
         c.enabled[i] = cJSON_IsTrue(v);
@@ -284,10 +297,24 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
         seen |= 1U << n;
         c.order[i] = n;
     }
+    /* A screen the record does not mention stays off and goes last in the
+     * order, which keeps order[] a permutation of all five. */
+    for (int i = listed, at = listed; i < HOME_SCREEN_COUNT; i++) {
+        c.enabled[i] = false;
+        for (int n2 = 0; n2 < HOME_SCREEN_COUNT; n2++)
+            if (!(seen & (1U << n2))) {
+                seen |= 1U << n2;
+                c.order[at++] = n2;
+                break;
+            }
+    }
     REQUIRE(any, "Enable at least one screen");
     cJSON *st = get(j, "styles");
-    REQUIRE(known(st, screens, 3), "Invalid styles");
-    for (int i = 0; i < 3; i++) {
+    REQUIRE(known(st, screens, HOME_SCREEN_COUNT), "Invalid styles");
+    for (int i = 0; i < HOME_SCREEN_COUNT; i++) {
+        /* Sky and Air are optional here for the same reason as the arrays above. */
+        if (i > HOME_NOTE && !get(st, screens[i]))
+            continue;
         n = choice(st, screens[i], styles, 4);
         REQUIRE(n >= 0, "Unknown style");
         c.style[i] = n;
@@ -302,7 +329,7 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
     n = choice(j, "mode", modes, 3);
     REQUIRE(n >= 0, "Invalid mode");
     c.mode = n;
-    n = choice(j, "fixed_screen", screens, 3);
+    n = choice(j, "fixed_screen", screens, HOME_SCREEN_COUNT);
     REQUIRE(n >= 0, "Invalid fixed screen");
     c.fixed_screen = n;
     REQUIRE(integer(j, "interval_min", 5, 1440, &n), "Rotation minimum is five minutes");
@@ -319,6 +346,18 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
         REQUIRE(n >= 0, "Invalid OK button action");
         c.ok_action = (uint8_t)n;
     }
+    if (get(j, "air_main")) { /* optional since 0.5.0 */
+        n = choice(j, "air_main", air_mains, 3);
+        REQUIRE(n >= 0, "Invalid Air headline number");
+        c.air_main = (uint8_t)n;
+    }
+    if (get(j, "brush")) { /* optional since 0.5.0 */
+        n = choice(j, "brush", brushes, 3);
+        if (n < 0 && choice(j, "brush", brushes_legacy, 3) >= 0)
+            n = 0; /* a pre-release line brush: grain */
+        REQUIRE(n >= 0, "Invalid brush");
+        c.brush = (uint8_t)n;
+    }
     REQUIRE(integer(j, "weekdays", 1, 127, &n), "Select at least one weekday");
     c.weekdays = n;
     cJSON *q = get(j, "quiet");
@@ -329,12 +368,13 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
     REQUIRE(!c.quiet_enabled || c.quiet_start != c.quiet_end,
             "Quiet hours must have different endpoints");
     cJSON *d = get(j, "day");
-    REQUIRE(cJSON_IsArray(d) && cJSON_GetArraySize(d) == 3, "Expected three day slots");
+    REQUIRE(cJSON_IsArray(d) && cJSON_GetArraySize(d) == HOME_DAY_SLOTS,
+            "Expected three day slots");
     static const char *const dkeys[] = {"time", "screen"};
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < HOME_DAY_SLOTS; i++) {
         cJSON *v = cJSON_GetArrayItem(d, i);
         REQUIRE(known(v, dkeys, 2) && hm(v, "time", &c.day_minute[i]), "Invalid day slot");
-        n = choice(v, "screen", screens, 3);
+        n = choice(v, "screen", screens, HOME_SCREEN_COUNT);
         REQUIRE(n >= 0, "Invalid day screen");
         c.day_screen[i] = n;
         if (i)
@@ -403,7 +443,7 @@ cJSON *home_config_json(const home_config_t *c, bool recipe)
     JSON_NEED(o);
     cJSON *s = cJSON_AddObjectToObject(j, "styles");
     JSON_NEED(s);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < HOME_SCREEN_COUNT; i++) {
         JSON_APPEND(a, cJSON_CreateBool(c->enabled[i]));
         JSON_APPEND(o, cJSON_CreateString(screens[c->order[i]]));
         JSON_NEED(cJSON_AddStringToObject(s, screens[i], styles[c->style[i]]));
@@ -419,6 +459,8 @@ cJSON *home_config_json(const home_config_t *c, bool recipe)
     JSON_NEED(cJSON_AddNumberToObject(j, "cycle_min", c->cycle_min));
     JSON_NEED(
         cJSON_AddStringToObject(j, "ok_action", ok_actions[c->ok_action < 4 ? c->ok_action : 0]));
+    JSON_NEED(cJSON_AddStringToObject(j, "air_main", air_mains[c->air_main < 3 ? c->air_main : 0]));
+    JSON_NEED(cJSON_AddStringToObject(j, "brush", brushes[c->brush < 3 ? c->brush : 0]));
     JSON_NEED(cJSON_AddNumberToObject(j, "weekdays", c->weekdays));
     cJSON *q = cJSON_AddObjectToObject(j, "quiet");
     JSON_NEED(q);
@@ -429,7 +471,7 @@ cJSON *home_config_json(const home_config_t *c, bool recipe)
     JSON_NEED(get(q, "end"));
     cJSON *d = cJSON_AddArrayToObject(j, "day");
     JSON_NEED(d);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < HOME_DAY_SLOTS; i++) {
         cJSON *v = cJSON_CreateObject();
         JSON_APPEND(d, v);
         addhm(v, "time", c->day_minute[i]);
@@ -463,23 +505,23 @@ int home_schedule_screen(const home_config_t *c, const struct tm *t, int current
         if (!(c->weekdays & (1 << dow)))
             return current;
         int m = t->tm_hour * 60 + t->tm_min;
-        desired = c->day_screen[2];
-        for (int i = 0; i < 3; i++)
+        desired = c->day_screen[HOME_DAY_SLOTS - 1];
+        for (int i = 0; i < HOME_DAY_SLOTS; i++)
             if (m >= c->day_minute[i])
                 desired = c->day_screen[i];
     } else if (c->mode == HOME_ROTATE && elapsed >= c->interval_min * 60) {
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < HOME_SCREEN_COUNT; i++)
             if (c->order[i] == current) {
-                for (int n = 1; n <= 3; n++) {
-                    int j = c->order[(i + n) % 3];
+                for (int n = 1; n <= HOME_SCREEN_COUNT; n++) {
+                    int j = c->order[(i + n) % HOME_SCREEN_COUNT];
                     if (c->enabled[j])
                         return j;
                 }
             }
     }
-    if (desired >= 0 && desired < 3 && c->enabled[desired])
+    if (desired >= 0 && desired < HOME_SCREEN_COUNT && c->enabled[desired])
         return desired;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < HOME_SCREEN_COUNT; i++)
         if (c->enabled[c->order[i]])
             return c->order[i];
     return current;
@@ -487,7 +529,7 @@ int home_schedule_screen(const home_config_t *c, const struct tm *t, int current
 
 int home_style_for(const home_config_t *c, int screen, uint32_t showing)
 {
-    if (screen < 0 || screen > 2)
+    if (screen < 0 || screen >= HOME_SCREEN_COUNT)
         return HOME_PRINT;
     int style = c->style[screen];
     if (style != HOME_CYCLE)
@@ -505,7 +547,14 @@ int home_auto_screen(const home_config_t *c, const home_data_t *d, const struct 
     ready.enabled[HOME_WEATHER] &= c->location_ready && d->weather.meta.valid;
     ready.enabled[HOME_FEED] &= d->feed.meta.valid;
     ready.enabled[HOME_NOTE] &= c->note[0] != 0;
-    if (!ready.enabled[0] && !ready.enabled[1] && !ready.enabled[2])
+    /* Sky is computed on the device from the saved place; Air needs both the
+     * place and a downloaded reading, like the weather. */
+    ready.enabled[HOME_SKY] &= c->location_ready;
+    ready.enabled[HOME_AIR] &= c->location_ready && d->air.meta.valid;
+    bool ready_any = false;
+    for (int i = 0; i < HOME_SCREEN_COUNT; i++)
+        ready_any |= ready.enabled[i];
+    if (!ready_any)
         return current;
     return home_schedule_screen(&ready, t, current, elapsed);
 }

@@ -94,9 +94,28 @@
       weather: "Weather",
       feed: "News",
       note: "Your note",
+      sky: "Sky",
+      air: "Air",
       weatherDesc: "The pulse of your place",
       feedDesc: "News from around the world",
       noteDesc: "A few words of your own",
+      skyDesc: "Sun and moon over your place",
+      airDesc: "Air quality, UV and pollen",
+      skySource:
+        "Worked out on the device from the place you saved; nothing is downloaded.",
+      airSource:
+        "Air quality, UV and pollen come from Open-Meteo, licensed under CC BY 4.0.",
+      airMain: "The big number",
+      brush: "Brush",
+      brushChoice: "Tone structure",
+      brushGrain: "Grain",
+      brushHalftone: "Halftone dots",
+      brushGrid: "Grid (classic)",
+      brushHelp:
+        "Four pigments and no grey: every tone is a pattern. Pick the one that paints it: soft grain, printed dots, or the ordered grid of earlier versions.",
+      airEU: "European air quality index",
+      airUS: "US AQI",
+      airPM: "PM2.5 in micrograms per cubic metre",
       edit: "Edit",
       enabled: "Include this screen",
       off: "Not in rotation",
@@ -349,9 +368,28 @@
       weather: "Pogoda",
       feed: "Wiadomości",
       note: "Twoja kartka",
+      sky: "Niebo",
+      air: "Powietrze",
       weatherDesc: "Puls Twojego miejsca",
       feedDesc: "Wiadomości ze świata",
       noteDesc: "Kilka własnych słów",
+      skyDesc: "Słońce i księżyc nad Twoim miejscem",
+      airDesc: "Jakość powietrza, UV i pyłki",
+      skySource:
+        "Liczone na urządzeniu z zapisanej lokalizacji; nic nie jest pobierane.",
+      airSource:
+        "Jakość powietrza, UV i pyłki pochodzą z Open-Meteo, na licencji CC BY 4.0.",
+      airMain: "Duża liczba",
+      brush: "Pędzel",
+      brushChoice: "Struktura tonów",
+      brushGrain: "Ziarno",
+      brushHalftone: "Kropka",
+      brushGrid: "Siatka (klasyczna)",
+      brushHelp:
+        "Cztery pigmenty i żadnej szarości: każdy ton to wzór. Wybierz ten, który go maluje: miękkie ziarno, kropkę jak w druku albo klasyczną siatkę z wcześniejszych wersji.",
+      airEU: "Europejski indeks jakości powietrza",
+      airUS: "Indeks US AQI",
+      airPM: "PM2,5 w mikrogramach na metr sześcienny",
       edit: "Edytuj",
       enabled: "Uwzględnij ten ekran",
       off: "Poza rotacją",
@@ -613,6 +651,8 @@
       '<path d="M8 6V3m-5 8H1m14-7 2-2M3 4l2 2"/><path d="M7 15a5 5 0 1 1 8-6M7 20h12a4 4 0 0 0 0-8 6 6 0 0 0-11-1 5 5 0 0 0-1 9Z"/>',
     feed: '<path d="M5 4h14v17H5V4ZM8 8h8m-8 4h8m-8 4h5"/>',
     note: '<path d="M4 3h16v13l-5 5H4V3Zm11 18v-5h5M8 8h8m-8 4h5"/>',
+    sky: '<path d="M3 17a9 9 0 0 1 18 0"/><path d="M1 17h2m18 0h2M12 4v2M5.6 7.6 7 9m10.4-1.4L16 9"/><circle cx="12" cy="17" r="3"/>',
+    air: '<path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8"/>',
     palette:
       '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18M3 12h18"/>',
     globe:
@@ -839,6 +879,10 @@
       return S.config?.note
         ? say("Your words", "Twoje słowa")
         : say("Add your words", "Dodaj swoje słowa");
+    if (screen === "sky")
+      return S.config?.location_ready === false
+        ? say("Needs your location", "Potrzebuje lokalizacji")
+        : say("Computed on the device", "Liczone na urządzeniu");
     const state = S.status?.sources?.[screen]?.state;
     const key = {
       ready: "fresh",
@@ -952,7 +996,7 @@
       .join("")}</nav>`;
   }
   function overview() {
-    return `<div class="home-overview"><section class="now-section"><div class="now-heading"><div><p class="eyebrow">${say("ON YOUR HOME", "NA TWOIM HOME")}</p><h1>${esc(S.config.name)}</h1></div><span class="state-chip" id="display-state">${statusName()}</span></div><figure class="now-art"><div class="device-frame" id="confirmed-holder">${S.frame ? `<canvas id="confirmed-frame" width="400" height="300" role="img" aria-label="${esc(t("confirmed"))}"></canvas>` : `<div class="frame-placeholder">${icon("screens")}<strong>${t("unconfirmed")}</strong><small id="frame-message">${t("frameUnknown")}</small></div>`}</div><figcaption><span id="frame-label">${t("confirmed")}</span><button class="icon-label-button" data-action="native-preview" data-kind="confirmed" ${!S.frame ? "disabled" : ""}>${icon("screens")}<span>1:1</span></button></figcaption></figure><p class="hint" id="battery-summary"></p><p class="refresh-note" id="refresh-note">${t("frameHint")}</p><button class="rhythm-summary" data-action="open-rhythm">${icon(S.status?.pause_remaining > 0 ? "pause" : "clock")}<span><strong>${t("rhythm")}</strong><small id="mode-summary">${esc(modeSummary())}</small></span>${icon("arrow")}</button>${!S.status?.online ? `<button class="network-prompt" data-action="wifi-settings">${icon("wifi")}<span>${say("Connect Wi-Fi for live information", "Połącz Wi-Fi, aby mieć aktualne informacje")}</span>${icon("arrow")}</button>` : ""}</section><section class="screen-library"><div class="section-label"><div><p class="eyebrow">${say("MAKE IT YOURS", "PO TWOJEMU")}</p><h2>${t("yourScreens")}</h2></div><span class="small muted">${S.config.enabled.filter(Boolean).length}/3 ${say("active", "aktywne")}</span></div><div class="poster-list">${S.draft.order.map((key) => `<article class="poster-card ${S.status?.displayed_screen === key ? "on-device" : ""}" data-poster-screen="${key}"><button class="poster-open" data-action="select" data-screen="${key}"><span class="poster-thumb"><canvas data-screen="${key}" width="400" height="300" aria-hidden="true"></canvas></span><span class="poster-copy"><span class="poster-name">${icon(key)}${t(key)}</span><small data-source-label>${!S.draft.enabled[C.screens.indexOf(key)] ? t("off") : esc(sourceLabel(key))}</small><span class="on-device-label" data-on-device ${S.status?.displayed_screen === key ? "" : "hidden"}>${icon("check")}${t("active")}</span></span>${icon("arrow")}</button><div class="poster-actions"><button data-action="select" data-screen="${key}">${icon("edit")}${t("edit")}</button><button data-action="show-card" data-screen="${key}" ${S.dirty || !S.config.enabled[C.screens.indexOf(key)] ? "disabled" : ""}>${icon("play")}${t("show")}</button></div></article>`).join("")}</div></section></div>`;
+    return `<div class="home-overview"><section class="now-section"><div class="now-heading"><div><p class="eyebrow">${say("ON YOUR HOME", "NA TWOIM HOME")}</p><h1>${esc(S.config.name)}</h1></div><span class="state-chip" id="display-state">${statusName()}</span></div><figure class="now-art"><div class="device-frame" id="confirmed-holder">${S.frame ? `<canvas id="confirmed-frame" width="400" height="300" role="img" aria-label="${esc(t("confirmed"))}"></canvas>` : `<div class="frame-placeholder">${icon("screens")}<strong>${t("unconfirmed")}</strong><small id="frame-message">${t("frameUnknown")}</small></div>`}</div><figcaption><span id="frame-label">${t("confirmed")}</span><button class="icon-label-button" data-action="native-preview" data-kind="confirmed" ${!S.frame ? "disabled" : ""}>${icon("screens")}<span>1:1</span></button></figcaption></figure><p class="hint" id="battery-summary"></p><p class="refresh-note" id="refresh-note">${t("frameHint")}</p><button class="rhythm-summary" data-action="open-rhythm">${icon(S.status?.pause_remaining > 0 ? "pause" : "clock")}<span><strong>${t("rhythm")}</strong><small id="mode-summary">${esc(modeSummary())}</small></span>${icon("arrow")}</button>${!S.status?.online ? `<button class="network-prompt" data-action="wifi-settings">${icon("wifi")}<span>${say("Connect Wi-Fi for live information", "Połącz Wi-Fi, aby mieć aktualne informacje")}</span>${icon("arrow")}</button>` : ""}</section><section class="screen-library"><div class="section-label"><div><p class="eyebrow">${say("MAKE IT YOURS", "PO TWOJEMU")}</p><h2>${t("yourScreens")}</h2></div><span class="small muted">${S.config.enabled.filter(Boolean).length}/${C.screens.length} ${say("active", "aktywne")}</span></div><div class="poster-list">${S.draft.order.map((key) => `<article class="poster-card ${S.status?.displayed_screen === key ? "on-device" : ""}" data-poster-screen="${key}"><button class="poster-open" data-action="select" data-screen="${key}"><span class="poster-thumb"><canvas data-screen="${key}" width="400" height="300" aria-hidden="true"></canvas></span><span class="poster-copy"><span class="poster-name">${icon(key)}${t(key)}</span><small data-source-label>${!S.draft.enabled[C.screens.indexOf(key)] ? t("off") : esc(sourceLabel(key))}</small><span class="on-device-label" data-on-device ${S.status?.displayed_screen === key ? "" : "hidden"}>${icon("check")}${t("active")}</span></span>${icon("arrow")}</button><div class="poster-actions"><button data-action="select" data-screen="${key}">${icon("edit")}${t("edit")}</button><button data-action="show-card" data-screen="${key}" ${S.dirty || !S.config.enabled[C.screens.indexOf(key)] ? "disabled" : ""}>${icon("play")}${t("show")}</button></div></article>`).join("")}</div></section></div>`;
   }
   function editor() {
     const s = S.selected,
@@ -960,7 +1004,31 @@
       position = S.draft.order.indexOf(s),
       last =
         S.draft.enabled.filter(Boolean).length === 1 && S.draft.enabled[index];
-    return `<section class="editor-page">${backButton()}<div class="page-title"><span class="title-icon">${icon(s)}</span><div><h1>${t(s)}</h1><p>${t(s + "Desc")}</p></div></div><div class="editor-layout"><section class="editor-fields"><div class="form-section"><h2>${say("What it says", "Co pokazuje")}</h2>${s === "feed" ? `<section id="selected-story" class="source-state" hidden><strong data-story-title></strong><p class="hint" data-story-source></p><a class="button-link" data-story-link target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${say("Read full story ↗", "Przeczytaj wiadomość ↗")}</a></section>` : ""}<div class="fields">${s === "weather" ? weatherEditor() : s === "feed" ? field("feed_url", "feedURL", "url", 'maxlength="512" inputmode="url" placeholder="https://…" autocomplete="off"', "feedHelp") : `<label class="field"><span>${t("noteText")}</span><textarea data-path="note" maxlength="240" rows="5" placeholder="${say("What matters today?", "Co jest dziś ważne?")}">${esc(S.draft.note)}</textarea><small>${t("noteHelp")}<span id="note-count">${noteSpace(S.draft.note)}</span><progress id="note-meter" max="100" value="${Math.min(100, C.noteUsage(S.draft.note).percent)}" aria-label="${esc(noteSpace(S.draft.note))}"></progress></small></label>`}</div></div><div class="form-section"><h2>${say("How it looks", "Jak wygląda")}</h2><div class="fields">${select(
+    return `<section class="editor-page">${backButton()}<div class="page-title"><span class="title-icon">${icon(s)}</span><div><h1>${t(s)}</h1><p>${t(s + "Desc")}</p></div></div><div class="editor-layout"><section class="editor-fields"><div class="form-section"><h2>${say("What it says", "Co pokazuje")}</h2>${s === "feed" ? `<section id="selected-story" class="source-state" hidden><strong data-story-title></strong><p class="hint" data-story-source></p><a class="button-link" data-story-link target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${say("Read full story ↗", "Przeczytaj wiadomość ↗")}</a></section>` : ""}<div class="fields">${
+      s === "weather"
+        ? weatherEditor()
+        : s === "feed"
+          ? field(
+              "feed_url",
+              "feedURL",
+              "url",
+              'maxlength="512" inputmode="url" placeholder="https://…" autocomplete="off"',
+              "feedHelp",
+            )
+          : s === "sky"
+            ? `<p class="hint">${t("skySource")}</p>`
+            : s === "air"
+              ? `<p class="hint">${t("airSource")}</p>${select(
+                  "air_main",
+                  "airMain",
+                  [
+                    ["eu", t("airEU")],
+                    ["us", t("airUS")],
+                    ["pm25", t("airPM")],
+                  ],
+                )}`
+              : `<label class="field"><span>${t("noteText")}</span><textarea data-path="note" maxlength="240" rows="5" placeholder="${say("What matters today?", "Co jest dziś ważne?")}">${esc(S.draft.note)}</textarea><small>${t("noteHelp")}<span id="note-count">${noteSpace(S.draft.note)}</span><progress id="note-meter" max="100" value="${Math.min(100, C.noteUsage(S.draft.note).percent)}" aria-label="${esc(noteSpace(S.draft.note))}"></progress></small></label>`
+    }</div></div><div class="form-section"><h2>${say("How it looks", "Jak wygląda")}</h2><div class="fields">${select(
       "styles." + s,
       "layout",
       [
@@ -969,7 +1037,7 @@
         ["atlas", t("atlas")],
         ["cycle", t("cycleStyle")],
       ],
-    )}${styleHints(s)}<button class="setting-link" data-action="appearance-settings">${icon("palette")}<span>${say("Texture, colour and larger text", "Faktura, kolor i większy tekst")}</span>${icon("arrow")}</button></div></div><div class="form-section"><h2>${say("In your collection", "W Twojej kolekcji")}</h2><label class="check"><span>${t("enabled")}</span><input type="checkbox" data-path="enabled.${index}" ${S.draft.enabled[index] ? "checked" : ""} ${last ? "disabled" : ""}></label>${last ? `<p class="hint">${say("Keep at least one screen enabled.", "Co najmniej jeden ekran musi pozostać aktywny.")}</p>` : ""}<div class="order-control"><button data-action="move" data-direction="-1" ${position === 0 ? "disabled" : ""}>↑ ${t("earlier")}</button><span>${position + 1} / 3</span><button data-action="move" data-direction="1" ${position === 2 ? "disabled" : ""}>↓ ${t("later")}</button></div></div></section><aside class="editor-aside"><section class="edit-preview"><div class="preview-title"><h2 id="preview-heading">${t("savedPreview")}</h2><button class="icon-label-button" data-action="native-preview" data-kind="draft">${icon("screens")}<span>1:1</span></button></div><canvas data-screen="${s}" width="400" height="300" role="img" aria-label="${esc(t("savedPreview"))}" ${!S.frames[s] ? "hidden" : ""}></canvas><p class="hint" id="preview-missing" ${S.frames[s] ? "hidden" : ""}>${t("previewMissing")}</p><p class="hint" id="draft-preview" ${!S.dirty ? "hidden" : ""}>${t("draftPreview")}</p><p class="hint">${t("photoHint")}</p></section><div id="source-holder">${sourceBlock(s)}</div></aside></div></section>`;
+    )}${styleHints(s)}<button class="setting-link" data-action="appearance-settings">${icon("palette")}<span>${say("Texture, colour and larger text", "Faktura, kolor i większy tekst")}</span>${icon("arrow")}</button></div></div><div class="form-section"><h2>${say("In your collection", "W Twojej kolekcji")}</h2><label class="check"><span>${t("enabled")}</span><input type="checkbox" data-path="enabled.${index}" ${S.draft.enabled[index] ? "checked" : ""} ${last ? "disabled" : ""}></label>${last ? `<p class="hint">${say("Keep at least one screen enabled.", "Co najmniej jeden ekran musi pozostać aktywny.")}</p>` : ""}<div class="order-control"><button data-action="move" data-direction="-1" ${position === 0 ? "disabled" : ""}>↑ ${t("earlier")}</button><span>${position + 1} / ${C.screens.length}</span><button data-action="move" data-direction="1" ${position === C.screens.length - 1 ? "disabled" : ""}>↓ ${t("later")}</button></div></div></section><aside class="editor-aside"><section class="edit-preview"><div class="preview-title"><h2 id="preview-heading">${t("savedPreview")}</h2><button class="icon-label-button" data-action="native-preview" data-kind="draft">${icon("screens")}<span>1:1</span></button></div><canvas data-screen="${s}" width="400" height="300" role="img" aria-label="${esc(t("savedPreview"))}" ${!S.frames[s] ? "hidden" : ""}></canvas><p class="hint" id="preview-missing" ${S.frames[s] ? "hidden" : ""}>${t("previewMissing")}</p><p class="hint" id="draft-preview" ${!S.dirty ? "hidden" : ""}>${t("draftPreview")}</p><p class="hint">${t("photoHint")}</p></section><div id="source-holder">${sourceBlock(s)}</div></aside></div></section>`;
   }
   function settingsMenu() {
     const rows = [
@@ -1031,7 +1099,15 @@
       )
       .join(
         "",
-      )}</div>${check("large_text", "largeText")}</div></div><section class="appearance-preview edit-preview"><div class="preview-title"><h2 id="preview-heading">${t("savedPreview")}</h2></div><label class="field"><span>${say("Preview screen", "Podgląd ekranu")}</span><select id="appearance-screen">${options(screenOptions(), S.selected)}</select></label><canvas data-screen="${S.selected}" width="400" height="300" role="img" aria-label="${esc(t("savedPreview"))}" ${!S.frames[S.selected] ? "hidden" : ""}></canvas><p class="hint" id="preview-missing" ${S.frames[S.selected] ? "hidden" : ""}>${t("previewMissing")}</p><p class="hint" id="draft-preview" ${!S.dirty ? "hidden" : ""}>${t("draftPreview")}</p><button class="primary wide" data-action="appearance-preview">${icon("screens")}${say("Preview · 400 × 300", "Podgląd · 400 × 300")}</button><p class="hint">${say("This preview does not change your Home display. Save and Show remain separate.", "Ten podgląd nie zmienia obrazu na Home. Zapisz i Pokaż pozostają osobnymi krokami.")}</p></section></div><div class="form-section"><h2>${t("profile")}</h2><div class="profile-grid">${[
+      )}</div></div><div class="form-section"><h2>${t("brush")}</h2>${select(
+      "brush",
+      "brushChoice",
+      [
+        ["grain", t("brushGrain")],
+        ["halftone", t("brushHalftone")],
+        ["grid", t("brushGrid")],
+      ],
+    )}<p class="hint">${t("brushHelp")}</p>${check("large_text", "largeText")}</div></div><section class="appearance-preview edit-preview"><div class="preview-title"><h2 id="preview-heading">${t("savedPreview")}</h2></div><label class="field"><span>${say("Preview screen", "Podgląd ekranu")}</span><select id="appearance-screen">${options(screenOptions(S.selected), S.selected)}</select></label><canvas data-screen="${S.selected}" width="400" height="300" role="img" aria-label="${esc(t("savedPreview"))}" ${!S.frames[S.selected] ? "hidden" : ""}></canvas><p class="hint" id="preview-missing" ${S.frames[S.selected] ? "hidden" : ""}>${t("previewMissing")}</p><p class="hint" id="draft-preview" ${!S.dirty ? "hidden" : ""}>${t("draftPreview")}</p><button class="primary wide" data-action="appearance-preview">${icon("screens")}${say("Preview · 400 × 300", "Podgląd · 400 × 300")}</button><p class="hint">${say("This preview does not change your Home display. Save and Show remain separate.", "Ten podgląd nie zmienia obrazu na Home. Zapisz i Pokaż pozostają osobnymi krokami.")}</p></section></div><div class="form-section"><h2>${t("profile")}</h2><div class="profile-grid">${[
       ["desk", "note"],
       ["distance", "screens"],
       ["showcase", "palette"],
@@ -1248,7 +1324,12 @@
     `<label class="field"><span>${esc(t(label))}</span><select data-path="${path}">${options(list, val(path))}</select></label>`;
   const check = (path, label) =>
     `<label class="check"><span>${esc(t(label))}</span><input type="checkbox" data-path="${path}" ${val(path) ? "checked" : ""}></label>`;
-  const screenOptions = () => C.screens.map((s) => [s, t(s)]);
+  /* "Day rhythm" and "One screen" choose among the screens in the collection;
+     a screen already saved in the slot stays selectable until it is changed. */
+  const screenOptions = (current) =>
+    C.screens
+      .filter((s, i) => S.draft?.enabled?.[i] === true || s === current)
+      .map((s) => [s, t(s)]);
   let zoneLabels = {},
     zonesFetched = false;
   async function loadTimezones() {
@@ -1885,6 +1966,21 @@
         sources?.feed?.valid === true &&
         !!sources.feed.title
       );
+    if (screen === "sky")
+      return (
+        c.location_ready !== false &&
+        d.location_ready !== false &&
+        d.latitude === c.latitude &&
+        d.longitude === c.longitude
+      );
+    if (screen === "air")
+      return (
+        c.location_ready !== false &&
+        d.location_ready !== false &&
+        d.latitude === c.latitude &&
+        d.longitude === c.longitude &&
+        sources?.air?.valid === true
+      );
     return typeof d.note === "string" && d.note.trim() !== "";
   }
   function styleHints(screen) {
@@ -2105,7 +2201,9 @@
     }
   }
   function sourceBlock(s) {
-    if (s === "note") return "";
+    /* Note is typed here and Sky is computed on the device: neither has anything
+       to fetch. Air does, so it gets the block and names its provider. */
+    if (s === "note" || s === "sky") return "";
     const v = S.status?.sources?.[s] || {};
     const name = [
       "fresh",
@@ -2129,7 +2227,7 @@
       .map(([l, k]) => `<dt>${t(l)}</dt><dd>${esc(formatTime(v[k]))}</dd>`)
       .join(
         "",
-      )}</dl><p class="hint">${S.lang === "pl" ? "Godziny według:" : "Times shown in:"} ${esc(C.formatTimestamp(1, S.lang, S.config?.timezone || "UTC", S.config?.clock24 !== false)?.zone || "UTC")}</p>${v.error ? `<p class="error-text">${t("failed")}</p>` : ""}<button data-action="refresh" data-source="${s}">${t("refreshSource")}</button></div></details>`;
+      )}</dl><p class="hint">${S.lang === "pl" ? "Godziny według:" : "Times shown in:"} ${esc(C.formatTimestamp(1, S.lang, S.config?.timezone || "UTC", S.config?.clock24 !== false)?.zone || "UTC")}</p>${v.error ? `<p class="error-text">${t("failed")}</p>` : ""}${s === "air" ? `<p class="hint">${t("airSource")}</p>` : ""}<button data-action="refresh" data-source="${s}">${t("refreshSource")}</button></div></details>`;
   }
   function screenView() {
     return S.editorOpen ? editor() : overview();
@@ -2146,7 +2244,7 @@
       )
       .join(
         "",
-      )}</div><div class="fields schedule-options">${S.draft.mode === "fixed" ? select("fixed_screen", "fixedScreen", screenOptions()) : S.draft.mode === "rotate" ? field("interval_min", "interval", "number", 'min="5" max="1440" step="1" inputmode="numeric"', "intervalHelp") : `<p class="hint">${t("dayHelp")}</p>${S.draft.day.map((d, i) => `<div class="day-slot"><span class="day-number">${i + 1}</span>${field("day." + i + ".time", "time", "time")}${select("day." + i + ".screen", "screen", screenOptions())}</div>`).join("")}`}</div><div class="section-label"><h2>${t("days")}</h2></div><div class="days">${t(
+      )}</div><div class="fields schedule-options">${S.draft.mode === "fixed" ? select("fixed_screen", "fixedScreen", screenOptions(S.draft.fixed_screen)) : S.draft.mode === "rotate" ? field("interval_min", "interval", "number", 'min="5" max="1440" step="1" inputmode="numeric"', "intervalHelp") : `<p class="hint">${t("dayHelp")}</p>${S.draft.day.map((d, i) => `<div class="day-slot"><span class="day-number">${i + 1}</span>${field("day." + i + ".time", "time", "time")}${select("day." + i + ".screen", "screen", screenOptions(d.screen))}</div>`).join("")}`}</div><div class="section-label"><h2>${t("days")}</h2></div><div class="days">${t(
       "dayNames",
     )
       .map(
@@ -2446,6 +2544,7 @@
                       pause_min: t("pauseMinutes"),
                       cycle_min: t("cycleInterval"),
                       ok_action: t("okAction"),
+                      air_main: t("airMain"),
                       clock24: t("clock"),
                       weekdays: t("days"),
                     })[k] || t(k),
@@ -2640,7 +2739,7 @@
       } else if (a === "move") {
         const i = S.draft.order.indexOf(S.selected),
           j = i + Number(b.dataset.direction);
-        if (j >= 0 && j < 3)
+        if (j >= 0 && j < C.screens.length)
           [S.draft.order[i], S.draft.order[j]] = [
             S.draft.order[j],
             S.draft.order[i],

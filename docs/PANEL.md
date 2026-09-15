@@ -60,13 +60,20 @@ to open a new one.
 
 The **On your Home** section shows the last picture the display confirmed, pixel
 for pixel, with its status and the battery. Below it, **Your screens** lists the
-three kinds of information:
+five kinds of information:
 
 | Screen | What it shows |
 | --- | --- |
 | Weather | The forecast from MET Norway for the place you set |
 | News | One headline from a public RSS or Atom feed: the first item for BBC World (the default), the newest entry for other HTTPS feeds |
 | Your note | A few words of your own |
+| Sky | Sunrise, sunset and the moon, worked out on the device from the place you set; nothing is downloaded |
+| Air | Air quality, UV and pollen from Open-Meteo for the place you set |
+
+Sky and Air are new, and they start switched off: your display keeps showing
+what it showed before. Air's picture arrives with the next update, so until then
+that screen says so when you switch it on. Turn one on, or off, under **In your
+collection** on its page.
 
 Tap a screen to open its page:
 
@@ -106,6 +113,26 @@ on your home Wi-Fi, and not on the setup network. Place search by
 instead. The estimate can land on your internet provider's city, and it does
 not replace a town you picked in the search.
 
+### The Sky screen
+
+Sky asks nothing of the internet: the device works out sunrise, sunset, the
+length of the day and the phase of the moon from the place you set and from its
+own clock. Nothing is downloaded for this screen, so it keeps working when the
+network does not.
+
+<p align="center"><img src="images/panel-sky.webp" width="260" alt="The Sky screen page in the panel: a preview and the note that everything is computed on the device"></p>
+
+### The Air screen
+
+Air shows the European air quality index, PM2.5 for the next 24 hours, the UV
+index with a sunscreen hint and, in Europe, four pollens, from Open-Meteo's
+Air Quality service. On its page you choose the headline number: the European
+index, the US AQI or PM2.5. Home asks Open-Meteo only while this screen is
+switched on, about once an hour, and sends it the saved coordinates and
+nothing else.
+
+<p align="center"><img src="images/panel-air.webp" width="260" alt="The Air screen page in the panel: the Open-Meteo source line and the choice of the headline number"></p>
+
 ### Compositions
 
 Every screen can be drawn as **Print**, **Rhythm** or **Atlas**. Choose
@@ -141,9 +168,11 @@ Tap **Pause for 60 min** to hold them for an hour.
 - **Wi-Fi connection**: change the network.
 - **Battery**: voltage, charging state and a rough percentage.
 - **Appearance**: **Pixel texture** (Fine, Medium or Large), **Colour use**
-  (Black & white, Balanced, Expressive) and **Larger text**, with a preview.
-  Fine keeps 1-pixel patterns for black and paper; coloured patterns are never
-  finer than 2 pixels. Profiles (**Desk**, **At a glance**, **Showcase**) give
+  (Black & white, Balanced, Expressive), **Brush** and **Larger text**, with a
+  preview. Fine keeps 1-pixel patterns for black and paper; coloured patterns
+  are never finer than 2 pixels. The brush is the pattern that paints every
+  tone on the large fields: **Grain** (blue noise, the default), **Halftone
+  dots**, or the classic **Grid** of earlier versions. Profiles (**Desk**, **At a glance**, **Showcase**) give
   you a starting point that you can adjust.
 - **Preferences**: display language, time zone and units.
 - **Your device**: connection details and help. **Disconnect this phone**

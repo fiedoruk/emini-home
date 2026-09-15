@@ -294,7 +294,8 @@ static esp_err_t status(httpd_req_t *r, int token)
              cJSON_AddNumberToObject(j, "refresh_queued", h->refresh_requested);
         cJSON *sources = ok ? cJSON_AddObjectToObject(j, "sources") : NULL;
         ok = ok && sources && json_child(sources, "weather", meta_json(&h->data.weather.meta)) &&
-             json_child(sources, "feed", feed_json(&h->data.feed));
+             json_child(sources, "feed", feed_json(&h->data.feed)) &&
+             json_child(sources, "air", meta_json(&h->data.air.meta));
     }
     home_unlock();
     if (!ok) {
@@ -459,12 +460,16 @@ static esp_err_t api_inner(httpd_req_t *r)
         }
         if (c.location_ready != home_runtime.config.location_ready ||
             c.latitude != home_runtime.config.latitude ||
-            c.longitude != home_runtime.config.longitude)
+            c.longitude != home_runtime.config.longitude) {
             memset(&home_runtime.data.weather, 0, sizeof(home_runtime.data.weather));
+            memset(&home_runtime.data.air, 0, sizeof(home_runtime.data.air));
+        }
         if (strcmp(c.feed_url, home_runtime.config.feed_url))
             memset(&home_runtime.data.feed, 0, sizeof(home_runtime.data.feed));
         if (!c.feed_url[0])
             home_runtime.refresh_requested &= ~2U;
+        if (!c.enabled[HOME_AIR])
+            home_runtime.refresh_requested &= ~4U;
         home_runtime.config = c;
         home_runtime.request_id++; /* Save changes settings; explicit Show publishes them. */
         cJSON *out = home_config_json(&c, false);
@@ -616,18 +621,23 @@ static esp_err_t api_inner(httpd_req_t *r)
         cJSON *v = cJSON_GetObjectItemCaseSensitive(j, "source");
         if (!only(j, "source", NULL) || !cJSON_IsString(v) ||
             (strcmp(v->valuestring, "weather") && strcmp(v->valuestring, "feed") &&
-             strcmp(v->valuestring, "all"))) {
+             strcmp(v->valuestring, "air") && strcmp(v->valuestring, "all"))) {
             result = error(r, "400 Bad Request", "Unknown source");
             goto done;
         }
-        unsigned mask =
-            !strcmp(v->valuestring, "weather") ? 1U : (!strcmp(v->valuestring, "feed") ? 2U : 3U);
+        unsigned mask = !strcmp(v->valuestring, "weather") ? 1U
+                        : !strcmp(v->valuestring, "feed")  ? 2U
+                        : !strcmp(v->valuestring, "air")   ? 4U
+                                                           : 7U;
         home_lock();
         if (!home_runtime.config.feed_url[0])
             mask &= ~2U;
+        /* Air is asked for only while its screen is on and a place is saved. */
+        if (!home_runtime.config.enabled[HOME_AIR] || !home_runtime.config.location_ready)
+            mask &= ~4U;
         home_runtime.refresh_requested |= mask;
         home_unlock();
-        result = mask ? accepted(r) : error(r, "400 Bad Request", "Choose a feed first");
+        result = mask ? accepted(r) : error(r, "400 Bad Request", "Choose a source first");
         goto done;
     }
     if (!strcmp(path, "/api/wifi")) {
