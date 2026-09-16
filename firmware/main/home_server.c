@@ -263,7 +263,19 @@ static esp_err_t status(httpd_req_t *r, int token)
          cJSON_AddNumberToObject(j, "pairing_seconds",
                                  h->pair_until > esp_timer_get_time()
                                      ? (h->pair_until - esp_timer_get_time()) / 1000000
-                                     : 0);
+                                     : 0) &&
+         /* The last gesture the device made sense of: key 1 up, 2 down, 4 the round one,
+          * how long it was held, and what it did. Lets a reader check a press without a cable. */
+         cJSON_AddNumberToObject(j, "last_key", h->key_last) &&
+         cJSON_AddNumberToObject(j, "last_key_ms", h->key_last_ms) &&
+         cJSON_AddStringToObject(j, "last_key_action",
+                                 h->key_last_what ? h->key_last_what : "") &&
+         /* Seconds since the weather source was last asked: tells a gesture apart from a
+          * screen that simply had nothing new to draw. */
+         cJSON_AddNumberToObject(j, "weather_checked_s",
+                                 h->data.weather.meta.checked_at > 0 && time(NULL) > 0
+                                     ? (double)(time(NULL) - h->data.weather.meta.checked_at)
+                                     : -1);
     if (token >= 0 && ok) {
         const home_battery_t *b = &h->battery;
         cJSON *battery = cJSON_AddObjectToObject(j, "battery");

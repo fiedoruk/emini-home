@@ -20,9 +20,9 @@ typedef struct {
 } cache_t;
 static const char *TAG = "home_store";
 static nvs_handle_t handle;
-static uint32_t sequence[3];
-static const char *keys[3][2] = {
-    {"config0", "config1"}, {"data0", "data1"}, {"secret0", "secret1"}};
+static uint32_t sequence[4];
+static const char *keys[4][2] = {
+    {"config0", "config1"}, {"data0", "data1"}, {"secret0", "secret1"}, {"stats0", "stats1"}};
 /* NVS only owns home_nvs. Never erase/format another partition or recover
  * corruption by erasing this one: a record that cannot be used is skipped and
  * the unit starts from defaults, leaving the old bytes until the next save.
@@ -208,4 +208,24 @@ esp_err_t home_store_data(const home_data_t *d, const home_config_t *c)
 esp_err_t home_store_secrets(const home_secrets_t *s)
 {
     return put(2, s, sizeof(*s));
+}
+/* Counters for the "emini" card. A record from another firmware has another size and is
+ * skipped, so the counters start from zero rather than from a field at the wrong offset. */
+esp_err_t home_store_stats(const home_counters_t *n)
+{
+    return put(3, n, sizeof(*n));
+}
+esp_err_t home_store_stats_load(home_counters_t *n)
+{
+    size_t size;
+    esp_err_t e;
+    void *p = get_record(3, &size, &e);
+    if (p) {
+        if (size == sizeof(*n))
+            memcpy(n, p, size);
+        else
+            e = ESP_ERR_INVALID_SIZE;
+        free(p);
+    }
+    return p && e == ESP_OK ? ESP_OK : e;
 }

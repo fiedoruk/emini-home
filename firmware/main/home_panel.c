@@ -120,6 +120,11 @@ static esp_err_t set_rail(int level)
     return ESP_OK;
 }
 
+static void (*idle_hook)(void);
+void home_panel_set_idle_hook(void (*hook)(void))
+{
+    idle_hook = hook;
+}
 static esp_err_t wait_idle(const char *stage)
 {
     int64_t start = esp_timer_get_time();
@@ -135,6 +140,8 @@ static esp_err_t wait_idle(const char *stage)
             last_log = now;
         }
         delay_ms(50);
+        if (idle_hook)
+            idle_hook();
     }
     return ESP_OK;
 }

@@ -40,7 +40,7 @@ typedef struct {
     uint8_t fixed_screen;
     uint16_t interval_min, pause_min;
     uint16_t cycle_min; /* "In turn": minutes per composition while a screen stays */
-    uint8_t ok_action;  /* short OK/BOOT: 0 language, 1 refresh, 2 hold, 3 setup window */
+    uint8_t ok_action;  /* short OK/BOOT: 0 the "emini" card, 1 refresh, 2 hold, 3 setup window */
     uint8_t air_main;   /* Air: headline number, 0 European index, 1 US AQI, 2 PM2.5 */
     uint8_t brush;      /* tone structure (D-HOME-CC-23/25): 0 grain, 1 halftone, 2 grid */
     bool quiet_enabled;
@@ -103,13 +103,44 @@ typedef struct {
     home_air_t air;
 } home_data_t;
 
+/* Counters kept across restarts, written at most once every few minutes. */
+typedef struct {
+    int64_t first_start;   /* UTC of the first start with a valid clock */
+    uint32_t pictures;     /* full picture changes */
+    uint32_t fetches;      /* downloads that came back usable */
+    uint32_t awake_minutes;
+    int64_t day_stamp;     /* UTC midnight of battery_day[0] */
+    int8_t battery_day[7];
+} home_counters_t;
+
+/* What the device knows about itself, for the "emini" card (0.6). Counters survive a restart;
+ * battery_day[0] is today, [6] is six days ago, -1 where no reading was kept. */
+#define HOME_BATTERY_DAYS 7
+typedef struct {
+    int64_t first_start;   /* UTC of the first start we know of; 0 when unknown */
+    uint32_t pictures;     /* full picture changes since then */
+    uint32_t fetches;      /* downloads that came back usable */
+    uint32_t awake_hours;  /* hours with the power on */
+    uint32_t render_ms, refresh_ms; /* the last picture: drawing and panel time */
+    int8_t battery_day[HOME_BATTERY_DAYS];
+    int percent;           /* now, -1 when unknown */
+    int estimate_hours;    /* -1 until the device has watched itself long enough */
+    bool charging, full;
+    char address[40];      /* the panel's own name on the home network */
+} home_stats_t;
+
 /* Pure C API; packed B0/W1/Y2/R3, four pixels MSB first. */
 void home_render(const home_config_t *config, const home_data_t *data,
                  home_screen_t screen, int64_t now, uint8_t frame[HOME_FRAME_BYTES]);
+/* Display language of a saved locale: 0 English, 1 Polish, 2 Chinese. English is the
+ * fallback, so an unknown locale never leaves a screen empty. */
+int home_language(const char *locale);
 void home_render_setup(const char *ssid, const char *password, const char *code,
-                       const char *address, bool pl, uint8_t frame[HOME_FRAME_BYTES]);
-void home_render_status(const char *title, const char *body, bool pl,
+                       const char *address, int lang, uint8_t frame[HOME_FRAME_BYTES]);
+void home_render_status(const char *title, const char *body, int lang,
                        uint8_t frame[HOME_FRAME_BYTES]);
+void home_render_info(const home_config_t *config, const home_stats_t *stats, int64_t now,
+                      uint8_t frame[HOME_FRAME_BYTES]);
 #ifdef HOME_TESTCARD
 /* Measurement cards 0..HOME_TESTCARDS-1 (plan 0.5.0 step 0.1); not in release images. */
 #define HOME_TESTCARDS 3

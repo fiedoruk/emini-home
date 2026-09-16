@@ -79,8 +79,12 @@ choice, as long as it is served over HTTPS. The note is yours: a reminder, a
 line from a friend, a few words to keep in view.
 
 Headlines and notes in Simplified Chinese are drawn with Noto Sans CJK glyphs
-(the 3 755 most common characters plus punctuation); lines break between
-characters, so a Chinese feed such as a news site's RSS works as it is.
+(the whole of GB 2312, 6 763 characters, plus punctuation); lines break between
+characters, so a Chinese feed such as a news site's RSS works as it is. Since
+0.5.1 the screens themselves speak Simplified Chinese too: every label, footer
+and sentence, the date as 9月15日, and air quality, UV and pollen by name.
+Choose the language in the phone panel, or hold the lower side button for five
+seconds on the device.
 
 ## Set it up from your phone
 

@@ -14,6 +14,9 @@
 #include <time.h>
 
 enum { BLACK = 0, PAPER = 1, YELLOW = 2, RED = 3, W = 400, H = 300 };
+#ifndef HOME_VERSION_TEXT
+#define HOME_VERSION_TEXT "0.5.1"
+#endif
 /* Brushes (D-HOME-CC-23, narrowed by D-HOME-CC-25): the user picks the tone structure in the
  * panel. The line-based screens (engraving, cross-hatch) were dropped after the device test:
  * on narrow strips and thin bars they read as broken stripes, not as texture. */
@@ -21,7 +24,7 @@ enum { RASTER_NOISE = 0, RASTER_DOTS = 1, RASTER_GRID = 2 };
 typedef struct {
     uint8_t *frame;
     int cell, intensity;
-    bool pl; /* Polish line breaks keep a one-letter word with the next word. */
+    int lang; /* LANG_*: chooses the words, and the Polish one-letter line-break rule. */
     int raster; /* tone structure in force: grain, or a screen of dots/lines/cross/grid */
     int brush;  /* the user's brush (RASTER_*), painted on the large fields only */
 } canvas_t;
@@ -46,13 +49,180 @@ static float clampf(float v, float a, float b)
 {
     return !isfinite(v) ? a : v < a ? a : v > b ? b : v;
 }
-static bool polish(const home_config_t *c)
+/* Three display languages. English is the fallback: a missing translation shows English
+ * words rather than boxes or an empty line. */
+enum { LANG_EN = 0, LANG_PL = 1, LANG_ZH = 2 };
+int home_language(const char *locale)
 {
-    return c->locale[0] == 'p' && c->locale[1] == 'l';
+    if (!locale)
+        return LANG_EN;
+    if (locale[0] == 'p' && locale[1] == 'l')
+        return LANG_PL;
+    if (locale[0] == 'z' && locale[1] == 'h')
+        return LANG_ZH;
+    return LANG_EN;
 }
-static const char *tr(bool pl, const char *en, const char *pol)
+static int lang_of(const home_config_t *c)
 {
-    return pl ? pol : en;
+    return home_language(c->locale);
+}
+/* Chinese is kept as a dictionary from the English wording instead of a third argument at
+ * every call: the screens stay readable, the whole translation can be reviewed in one place,
+ * and the next language is a second table. Sorted by the English text, binary search. */
+typedef struct {
+    const char *en, *zh;
+} phrase_t;
+static const phrase_t chinese[] = {
+    {" · sunscreen from %s", " · %s 起涂防晒"},
+    {"%lu d %lu h", "%lu 天 %lu 小时"},
+    {"%s for %d h", "%s 持续 %d 小时"},
+    {"%s from %s", "%s 从 %s 起"},
+    {"%s until %s", "%s 到 %s"},
+    {"1  JOIN THIS WI-FI NETWORK", "1  用手机连接此 WI-FI"},
+    {"1  JOIN WI-FI", "1  连接 WI-FI"},
+    {"2  OPEN HOME", "2  打开 HOME"},
+    {"2  OPEN THIS ADDRESS IN YOUR BROWSER", "2  在浏览器中打开此地址"},
+    {"24h", "24h"},
+    {"3  Pairing code", "3  配对码"},
+    {"A forecast for your place.", "你所在地的天气预报。"},
+    {"A little room for the world.", "留一点空间给世界。"},
+    {"A sky for your place.", "你所在地的天空。"},
+    {"AIR", "空气"},
+    {"AIR QUALITY", "空气质量"},
+    {"AWAKE", "运行"},
+    {"About %d days", "约 %d 天"},
+    {"About %d h", "约 %d 小时"},
+    {"Age unknown · check time", "时间未知 · 请检查时钟"},
+    {"Air", "空气"},
+    {"BATTERY", "电池"},
+    {"BATTERY · LAST SEVEN DAYS", "电池 · 最近七天"},
+    {"Cannot load data · check the phone panel", "无法获取数据 · 请查看手机面板"},
+    {"Charged", "已充满"},
+    {"Charging", "充电中"},
+    {"Checked %lld days ago", "%lld 天前查询"},
+    {"Checked %lld h ago", "%lld 小时前查询"},
+    {"Checked just now", "刚刚查询"},
+    {"Checked within the hour", "一小时内查询过"},
+    {"Choose a screen.", "选择一个画面。"},
+    {"Choose an RSS or Atom source in your phone panel. One story, without a stream to chase.",
+     "在手机面板里选择 RSS 或 Atom 源。只看一条消息，不必追着信息流跑。"},
+    {"Clear skies", "晴"},
+    {"Cloud cover", "多云"},
+    {"Computed on the device · nothing downloaded", "在设备上算出 · 不下载数据"},
+    {"Connect your phone.", "连接你的手机。"},
+    {"Connection failed · saved data", "连接失败 · 使用已存数据"},
+    {"DOWNLOADS", "下载次数"},
+    {"DRAWN IN", "绘制用时"},
+    {"Date unknown", "日期未知"},
+    {"Dry until %s", "%s 前无降水"},
+    {"EU index", "欧盟指数"},
+    {"FORECAST", "预报"},
+    {"First quarter", "上弦月"},
+    {"Fog", "雾"},
+    {"Full in %d days", "%d 天后满月"},
+    {"Full moon", "满月"},
+    {"Full story in phone panel", "全文见手机面板"},
+    {"Full today", "今天满月"},
+    {"Help · emini.ink/home", "帮助 · emini.ink/home"},
+    {"Home reads the clock from the internet, and the sun and the moon appear here as soon as it has one.",
+     "Home 从网络获取时间，一旦有了时间，日月就会出现在这里。"},
+    {"Home, meet your phone.", "Home，认识一下你的手机。"},
+    {"Hourly detail unavailable", "无逐小时预报"},
+    {"Last quarter", "下弦月"},
+    {"Learning how long a charge lasts", "正在学习一次充电能用多久"},
+    {"Lit %s%%", "照亮 %s%%"},
+    {"Make this space yours.", "这块地方留给你。"},
+    {"Midnight sun", "极昼"},
+    {"Mostly clear", "大致晴朗"},
+    {"NETWORK PASSWORD", "网络密码"},
+    {"NEXT 24 H · PM2.5, UV IN YELLOW", "未来 24 小时 · PM2.5，紫外线为黄色"},
+    {"NEXT HOURS · °%s / mm", "未来几小时 · °%s / 毫米"},
+    {"NOW", "现在"},
+    {"New in %d days", "%d 天后新月"},
+    {"New moon", "新月"},
+    {"New today", "今天新月"},
+    {"No index", "无指数"},
+    {"No pollen forecast for this place", "此地无花粉预报"},
+    {"No range", "无高低温"},
+    {"ONE STORY", "一条消息"},
+    {"Older data · waiting for update", "数据较旧 · 等待更新"},
+    {"Open the panel on your phone and choose what Home shows.", "打开手机面板，选择 Home 显示的内容。"},
+    {"Open the phone panel and use your location. Air quality, UV and pollen from Open-Meteo will appear here within the hour.",
+     "打开手机面板并使用你的位置。来自 Open-Meteo 的空气质量、紫外线和花粉会在一小时内出现。"},
+    {"Open the phone panel and use your location. The first forecast will appear here.",
+     "打开手机面板并使用你的位置。第一份预报会出现在这里。"},
+    {"Open the phone panel and use your location. The sun and the moon are then worked out here, with nothing downloaded.",
+     "打开手机面板并使用你的位置。日月将在设备上算出，不下载任何数据。"},
+    {"PICTURES DRAWN", "已绘制画面"},
+    {"PM2.5 in µg per m3", "PM2.5 微克每立方米"},
+    {"Partly cloudy", "局部多云"},
+    {"Password", "密码"},
+    {"Polar night", "极夜"},
+    {"Rain ahead", "有雨"},
+    {"SKY", "天空"},
+    {"Sky needs the time.", "天空需要时间。"},
+    {"Sleet", "雨夹雪"},
+    {"Snow", "雪"},
+    {"Sunrise", "日出"},
+    {"Sunrise %s · Sunset %s", "日出 %s · 日落 %s"},
+    {"Sunrise and sunset unknown", "日出日落未知"},
+    {"Sunset", "日落"},
+    {"TODAY", "今天"},
+    {"The air, at a glance.", "一眼看懂空气。"},
+    {"The sun does not rise today", "今天太阳不升"},
+    {"The sun does not set today", "今天太阳不落"},
+    {"This screen arrives with the next update.", "这个画面会在下次更新时出现。"},
+    {"Thunderstorms", "雷雨"},
+    {"Waning crescent", "残月"},
+    {"Waning gibbous", "亏凸月"},
+    {"Waxing crescent", "蛾眉月"},
+    {"Waxing gibbous", "盈凸月"},
+    {"Weather", "天气"},
+    {"Weather forecast", "天气预报"},
+    {"Wind %s m/s", "风 %s 米/秒"},
+    {"Wind —", "风 —"},
+    {"With you for %lld days", "陪伴你 %lld 天"},
+    {"Write a message in your phone panel. A reminder, a thought, something worth keeping in view.",
+     "在手机面板里写一段话。提醒、想法，或者值得留在眼前的东西。"},
+    {"YOUR NOTE", "你的便笺"},
+    {"Your source", "你的信息源"},
+    {"Yours to keep in view.", "留在眼前的话。"},
+    {"day %d h %02d min", "昼长 %d 小时 %02d 分"},
+    {"day %d h %02d min (%s%s min)", "昼长 %d 小时 %02d 分（%s%s 分）"},
+    {"daylight all day", "全天有光"},
+    {"no daylight today", "今天没有日光"},
+    {"sunscreen now", "现在涂防晒"},
+};
+/* Checked by the harness: every English phrase above is one the screens really pass to
+ * tr(), and every Chinese character is in the font the device carries (GB 2312). */
+static const char *chinese_for(const char *en)
+{
+    size_t low = 0, high = sizeof chinese / sizeof chinese[0];
+    while (low < high) {
+        size_t mid = (low + high) / 2;
+        int d = strcmp(en, chinese[mid].en);
+        if (!d)
+            return chinese[mid].zh[0] ? chinese[mid].zh : NULL;
+        if (d < 0)
+            high = mid;
+        else
+            low = mid + 1;
+    }
+    return NULL;
+}
+static const char *tr(int lang, const char *en, const char *pol)
+{
+    if (lang == LANG_ZH) {
+        const char *zh = chinese_for(en);
+        return zh ? zh : en;
+    }
+    return lang == LANG_PL ? pol : en;
+}
+/* One of three word lists, for the arrays that name months, levels and phases. */
+static const char *const *words(int lang, const char *const *en, const char *const *pol,
+                                const char *const *zh)
+{
+    return lang == LANG_ZH ? zh : lang == LANG_PL ? pol : en;
 }
 static void pixel(canvas_t *c, int x, int y, int p)
 {
@@ -345,7 +515,7 @@ static void text(canvas_t *c, int x, int y, int w, int h, int fi, int p, const c
             if (cjk(ch) && !cjk_no_end(ch)) {
                 space = count;
                 space_at = at;
-            } else if (ch == ' ' && c->pl && one_letter_word(cp, count - 1)) {
+            } else if (ch == ' ' && c->lang == LANG_PL && one_letter_word(cp, count - 1)) {
                 kept = count - 1;
                 kept_at = at;
             } else if (ch == ' ') {
@@ -389,22 +559,34 @@ static void top(canvas_t *c, const home_config_t *cfg, const char *section)
     txt(c, imax(212, 386 - tw), 9, 174, 17, 0, section);
     rect(c, 14, 31, 372, 1, BLACK);
 }
-static void stamp(char *out, size_t len, int64_t epoch, bool pl, bool clock24, const char *zone)
+static void stamp(char *out, size_t len, int64_t epoch, int lang, bool clock24, const char *zone)
 {
     struct tm tm;
     if (epoch <= 0 || !home_tz_localtime(zone, epoch, &tm)) {
-        snprintf(out, len, "%s", tr(pl, "Date unknown", "Data nieznana"));
+        snprintf(out, len, "%s", tr(lang, "Date unknown", "Data nieznana"));
         return;
     }
     static const char *en[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN",
                                "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
     static const char *po[] = {"STY", "LUT", "MAR", "KWI", "MAJ", "CZE",
                                "LIP", "SIE", "WRZ", "PAŹ", "LIS", "GRU"};
+    /* Chinese writes the date as 9 month 15 day and the half of the day before the hour. */
+    if (lang == LANG_ZH) {
+        if (clock24)
+            snprintf(out, len, "%d月%d日 · %02d:%02d", tm.tm_mon + 1, tm.tm_mday,
+                     tm.tm_hour, tm.tm_min);
+        else
+            snprintf(out, len, "%d月%d日 · %s%d:%02d", tm.tm_mon + 1, tm.tm_mday,
+                     tm.tm_hour < 12 ? "上午" : "下午",
+                     tm.tm_hour % 12 ? tm.tm_hour % 12 : 12, tm.tm_min);
+        return;
+    }
     if (clock24)
-        snprintf(out, len, "%02d %s · %02d:%02d", tm.tm_mday, (pl ? po : en)[tm.tm_mon], tm.tm_hour,
-                 tm.tm_min);
+        snprintf(out, len, "%02d %s · %02d:%02d", tm.tm_mday, (lang == LANG_PL ? po : en)[tm.tm_mon],
+                 tm.tm_hour, tm.tm_min);
     else
-        snprintf(out, len, "%02d %s · %d:%02d %s", tm.tm_mday, (pl ? po : en)[tm.tm_mon],
+        snprintf(out, len, "%02d %s · %d:%02d %s", tm.tm_mday,
+                 (lang == LANG_PL ? po : en)[tm.tm_mon],
                  tm.tm_hour % 12 ? tm.tm_hour % 12 : 12, tm.tm_min, tm.tm_hour < 12 ? "AM" : "PM");
 }
 static home_source_state_t state_at(const home_source_meta_t *m, int64_t now)
@@ -422,31 +604,38 @@ static home_source_state_t state_at(const home_source_meta_t *m, int64_t now)
 static void source_footer(canvas_t *c, const home_config_t *cfg, const home_source_meta_t *m,
                           int64_t now, const char *source, int64_t issue)
 {
-    bool pl = polish(cfg);
+    int lang = lang_of(cfg);
     char date[64], status[96];
-    stamp(date, sizeof date, issue, pl, cfg->clock24, cfg->timezone);
+    stamp(date, sizeof date, issue, lang, cfg->clock24, cfg->timezone);
     home_source_state_t st = state_at(m, now);
     if (st == HOME_ERROR)
         snprintf(status, sizeof status, "%s",
-                 tr(pl, "Connection failed · saved data", "Brak połączenia · zapisane dane"));
+                 tr(lang, "Connection failed · saved data", "Brak połączenia · zapisane dane"));
     else if (!time_valid(now) || !time_valid(m->fetched_at) || m->fetched_at > now + 300)
         snprintf(status, sizeof status, "%s",
-                 tr(pl, "Age unknown · check time", "Wiek nieznany · sprawdź czas"));
+                 tr(lang, "Age unknown · check time", "Wiek nieznany · sprawdź czas"));
     else if (st == HOME_STALE)
         snprintf(
             status, sizeof status, "%s",
-            tr(pl, "Older data · waiting for update", "Starsze dane · czekają na aktualizację"));
+            tr(lang, "Older data · waiting for update", "Starsze dane · czekają na aktualizację"));
     else {
-        int64_t hours = (now - m->fetched_at) / 3600;
-        if (hours < 1)
+        /* "Checked" is when we last asked the provider, not when the content last changed.
+         * A conditional request usually comes back 304 Not Modified, which keeps fetched_at
+         * where it was: counting from it made the line say "within the hour" right after a
+         * fresh check and left the Refresh gesture with nothing to show (16.09). */
+        int64_t checked = time_valid(m->checked_at) ? m->checked_at : m->fetched_at;
+        int64_t hours = (now - checked) / 3600;
+        if (now - checked < 120)
+            snprintf(status, sizeof status, "%s", tr(lang, "Checked just now", "Sprawdzono teraz"));
+        else if (hours < 1)
             snprintf(status, sizeof status, "%s",
-                     tr(pl, "Checked within the hour", "Sprawdzono w ostatniej godzinie"));
+                     tr(lang, "Checked within the hour", "Sprawdzono w ostatniej godzinie"));
         else if (hours < 48)
             snprintf(status, sizeof status,
-                     pl ? "Sprawdzono %lld godz. temu" : "Checked %lld h ago", (long long)hours);
+                     tr(lang, "Checked %lld h ago", "Sprawdzono %lld godz. temu"), (long long)hours);
         else
             snprintf(status, sizeof status,
-                     pl ? "Sprawdzono %lld dni temu" : "Checked %lld days ago",
+                     tr(lang, "Checked %lld days ago", "Sprawdzono %lld dni temu"),
                      (long long)(hours / 24));
     }
     rect(c, 14, 261, 372, 1, BLACK);
@@ -457,16 +646,16 @@ static void source_footer(canvas_t *c, const home_config_t *cfg, const home_sour
 static void empty(canvas_t *c, const home_config_t *cfg, home_screen_t screen,
                   home_source_state_t st)
 {
-    bool pl = polish(cfg);
+    int lang = lang_of(cfg);
     const char *title = screen == HOME_WEATHER
-                            ? tr(pl, "A forecast for your place.", "Prognoza dla Twojego miejsca.")
+                            ? tr(lang, "A forecast for your place.", "Prognoza dla Twojego miejsca.")
                         : screen == HOME_FEED
-                            ? tr(pl, "A little room for the world.", "Trochę miejsca na świat.")
+                            ? tr(lang, "A little room for the world.", "Trochę miejsca na świat.")
                         : screen == HOME_AIR
-                            ? tr(pl, "The air, at a glance.", "Powietrze na jeden rzut oka.")
+                            ? tr(lang, "The air, at a glance.", "Powietrze na jeden rzut oka.")
                         : screen == HOME_SKY
-                            ? tr(pl, "A sky for your place.", "Niebo dla Twojego miejsca.")
-                            : tr(pl, "Make this space yours.", "To miejsce jest dla Ciebie.");
+                            ? tr(lang, "A sky for your place.", "Niebo dla Twojego miejsca.")
+                            : tr(lang, "Make this space yours.", "To miejsce jest dla Ciebie.");
     /* Sunset ramp paper -> yellow -> red (three pigments per point), in the user's brush. */
     c->raster = c->brush;
     for (int x = 280; x < 400; ++x) {
@@ -482,27 +671,27 @@ static void empty(canvas_t *c, const home_config_t *cfg, home_screen_t screen,
     c->raster = RASTER_NOISE;
     txt(c, 14, 54, 268, 112, 3, title);
     const char *body =
-        screen == HOME_WEATHER ? tr(pl,
+        screen == HOME_WEATHER ? tr(lang,
                                     "Open the phone panel and use your location. The first "
                                     "forecast will appear here.",
                                     "Otwórz panel w telefonie i użyj swojej lokalizacji. Pierwsza "
                                     "prognoza pojawi się tutaj.")
-        : screen == HOME_FEED  ? tr(pl,
+        : screen == HOME_FEED  ? tr(lang,
                                     "Choose an RSS or Atom source in your phone panel. One story, "
                                     "without a stream to chase.",
                                     "Wybierz źródło RSS lub Atom w panelu telefonu. Jedna "
                                     "wiadomość, bez gonienia za strumieniem.")
-        : screen == HOME_SKY   ? tr(pl,
+        : screen == HOME_SKY   ? tr(lang,
                                     "Open the phone panel and use your location. The sun and the "
                                     "moon are then worked out here, with nothing downloaded.",
                                     "Otwórz panel w telefonie i użyj swojej lokalizacji. Słońce i "
                                     "księżyc policzą się tutaj, bez pobierania.")
-        : screen == HOME_AIR   ? tr(pl,
+        : screen == HOME_AIR   ? tr(lang,
                                     "Open the phone panel and use your location. Air quality, UV "
                                     "and pollen from Open-Meteo will appear here within the hour.",
                                     "Otwórz panel w telefonie i użyj swojej lokalizacji. Jakość "
                                     "powietrza, UV i pyłki z Open-Meteo pojawią się tu w ciągu godziny.")
-                               : tr(pl,
+                               : tr(lang,
                                     "Write a message in your phone panel. A reminder, a thought, "
                                     "something worth keeping in view.",
                                     "Wpisz wiadomość w panelu telefonu. Przypomnienie, myśl, coś, "
@@ -510,31 +699,31 @@ static void empty(canvas_t *c, const home_config_t *cfg, home_screen_t screen,
     txt(c, 14, 172, 260, 80, 1, body);
     rect(c, 14, 261, 372, 1, BLACK);
     txt(c, 14, 269, 372, 22, 1,
-        st == HOME_ERROR ? tr(pl, "Cannot load data · check the phone panel",
+        st == HOME_ERROR ? tr(lang, "Cannot load data · check the phone panel",
                               "Nie można pobrać danych · sprawdź panel")
                          : "emini.ink/home");
 }
-static const char *condition(const home_weather_t *w, bool pl)
+static const char *condition(const home_weather_t *w, int lang)
 {
     if (contains(w->symbol, sizeof w->symbol, "thunder"))
-        return tr(pl, "Thunderstorms", "Burze");
+        return tr(lang, "Thunderstorms", "Burze");
     if (contains(w->symbol, sizeof w->symbol, "sleet"))
-        return tr(pl, "Sleet", "Śnieg z deszczem");
+        return tr(lang, "Sleet", "Śnieg z deszczem");
     if (contains(w->symbol, sizeof w->symbol, "snow"))
-        return tr(pl, "Snow", "Śnieg");
+        return tr(lang, "Snow", "Śnieg");
     if (contains(w->symbol, sizeof w->symbol, "rain"))
-        return tr(pl, "Rain ahead", "Deszcz");
+        return tr(lang, "Rain ahead", "Deszcz");
     if (contains(w->symbol, sizeof w->symbol, "fog"))
-        return tr(pl, "Fog", "Mgła");
+        return tr(lang, "Fog", "Mgła");
     if (contains(w->symbol, sizeof w->symbol, "clearsky"))
-        return tr(pl, "Clear skies", "Pogodne niebo");
+        return tr(lang, "Clear skies", "Pogodne niebo");
     if (contains(w->symbol, sizeof w->symbol, "fair"))
-        return tr(pl, "Mostly clear", "Przeważnie pogodnie");
+        return tr(lang, "Mostly clear", "Przeważnie pogodnie");
     if (contains(w->symbol, sizeof w->symbol, "partlycloudy"))
-        return tr(pl, "Partly cloudy", "Częściowe zachmurzenie");
+        return tr(lang, "Partly cloudy", "Częściowe zachmurzenie");
     if (contains(w->symbol, sizeof w->symbol, "cloudy"))
-        return tr(pl, "Cloud cover", "Zachmurzenie");
-    return tr(pl, "Weather forecast", "Prognoza pogody");
+        return tr(lang, "Cloud cover", "Zachmurzenie");
+    return tr(lang, "Weather forecast", "Prognoza pogody");
 }
 /* Large text sets the condition in 30 px only when no word is wider than its box, so
  * text() never splits a word or cuts it with an ellipsis; otherwise it stays 22 px. */
@@ -557,12 +746,12 @@ static double temp(double c, bool f)
     return f ? c * 1.8 + 32 : c;
 }
 /* A finite, clamped value: decimal comma in Polish, U+2212 minus, never "-0". */
-static void number(char *out, size_t len, double v, int decimals, bool pl)
+static void number(char *out, size_t len, double v, int decimals, int lang)
 {
     char digits[24];
     snprintf(digits, sizeof digits, "%.*f", decimals, fabs(v));
     bool zero = strspn(digits, "0.") == strlen(digits);
-    char *dot = pl ? strchr(digits, '.') : NULL;
+    char *dot = lang == LANG_PL ? strchr(digits, '.') : NULL;
     if (dot)
         *dot = ',';
     snprintf(out, len, "%s%s", v < 0 && !zero ? "−" : "", digits);
@@ -587,9 +776,9 @@ static void clock_text(char *out, size_t len, const struct tm *tm, bool clock24,
 /* English names the precipitation after the current symbol, so the line never says
  * rain under "Snow or sleet"; Polish "Opady" covers every kind. Later hours have no
  * symbol of their own in the cache, so the current one stands in for them. */
-static const char *precipitation(const home_weather_t *w, bool pl)
+static const char *precipitation(const home_weather_t *w, int lang)
 {
-    return pl                                               ? "Opady"
+    return lang                                               ? "Opady"
            : contains(w->symbol, sizeof w->symbol, "sleet") ? "Sleet"
            : contains(w->symbol, sizeof w->symbol, "snow")  ? "Snow"
                                                             : "Rain";
@@ -600,8 +789,8 @@ static const char *precipitation(const home_weather_t *w, bool pl)
 static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const home_weather_t *w,
                          int64_t now)
 {
-    bool pl = polish(cfg);
-    const char *noun = precipitation(w, pl);
+    int lang = lang_of(cfg);
+    const char *noun = precipitation(w, lang);
     int n = imin(w->hourly_count, 12), start = -1, stop = -1;
     for (int k = 0; k < n; ++k)
         if (!isfinite(w->hourly_rain[k]))
@@ -629,26 +818,26 @@ static bool rain_outlook(char *out, size_t len, const home_config_t *cfg, const 
                stop < 0 || (from.tm_hour < 12) != (until.tm_hour < 12));
     clock_text(b, sizeof b, &until, cfg->clock24, true, true);
     if (start < 0)
-        snprintf(out, len, pl ? "Bez opadów do %s" : "Dry until %s", b);
+        snprintf(out, len, tr(lang, "Dry until %s", "Bez opadów do %s"), b);
     else if (start == first && stop < 0)
-        snprintf(out, len, pl ? "%s przez %d h" : "%s for %d h", noun, n - first);
+        snprintf(out, len, tr(lang, "%s for %d h", "%s przez %d h"), noun, n - first);
     else if (start == first)
-        snprintf(out, len, pl ? "%s do %s" : "%s until %s", noun, b);
+        snprintf(out, len, tr(lang, "%s until %s", "%s do %s"), noun, b);
     else if (stop < 0)
-        snprintf(out, len, pl ? "%s od %s" : "%s from %s", noun, a);
+        snprintf(out, len, tr(lang, "%s from %s", "%s od %s"), noun, a);
     else
         snprintf(out, len, "%s %s–%s", noun, a, b);
     return true;
 }
 /* Fallback: the precipitation amount of the current hour. */
-static void rain_amount(char *out, size_t len, const home_weather_t *w, bool pl)
+static void rain_amount(char *out, size_t len, const home_weather_t *w, int lang)
 {
     char mm[24];
     if (isfinite(w->precipitation)) {
-        number(mm, sizeof mm, clamp(w->precipitation, 0, 999), 1, pl);
-        snprintf(out, len, "%s %s mm", precipitation(w, pl), mm);
+        number(mm, sizeof mm, clamp(w->precipitation, 0, 999), 1, lang);
+        snprintf(out, len, "%s %s mm", precipitation(w, lang), mm);
     } else
-        snprintf(out, len, "%s —", precipitation(w, pl));
+        snprintf(out, len, "%s —", precipitation(w, lang));
 }
 static void disc(canvas_t *c, int cx, int cy, int rx, int ry, const home_weather_t *w)
 {
@@ -755,11 +944,12 @@ static void forecast_graph(canvas_t *c, const home_weather_t *w, int x, int y, i
 }
 static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t *w, int64_t now)
 {
-    bool pl = polish(cfg), f = cfg->units[0] == 'F';
+    int lang = lang_of(cfg);
+    bool f = cfg->units[0] == 'F';
     int style = cfg->style[HOME_WEATHER] <= HOME_ATLAS ? cfg->style[HOME_WEATHER] : HOME_PRINT;
     char label[160], value[32], range[80], metrics[128], rain[64], wind[32], a[24], b[24];
     snprintf(label, sizeof label, "%.64s",
-             cfg->location[0] ? cfg->location : tr(pl, "Weather", "Pogoda"));
+             cfg->location[0] ? cfg->location : tr(lang, "Weather", "Pogoda"));
     top(c, cfg, label);
     if (!w->meta.valid) {
         empty(c, cfg, HOME_WEATHER, w->meta.state);
@@ -769,37 +959,37 @@ static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t 
         empty(c, cfg, HOME_WEATHER, HOME_ERROR);
         return;
     }
-    number(a, sizeof a, temp(clamp(w->temperature, -100, 100), f), 0, pl);
+    number(a, sizeof a, temp(clamp(w->temperature, -100, 100), f), 0, lang);
     snprintf(value, sizeof value, "%s°", a);
     if (isfinite(w->low) && isfinite(w->high)) {
-        number(a, sizeof a, temp(clamp(w->low, -100, 100), f), 0, pl);
-        number(b, sizeof b, temp(clamp(w->high, -100, 100), f), 0, pl);
+        number(a, sizeof a, temp(clamp(w->low, -100, 100), f), 0, lang);
+        number(b, sizeof b, temp(clamp(w->high, -100, 100), f), 0, lang);
         /* A spaced dash keeps "−7 – −2" apart from the minus signs. */
         bool negative = !strncmp(a, "−", 3) || !strncmp(b, "−", 3);
         snprintf(range, sizeof range, "%s%s%s °%s · %s", a, negative ? " – " : "–", b,
-                 f ? "F" : "C", pl ? "24 h" : "24h");
+                 f ? "F" : "C", tr(lang, "24h", "24 h"));
     } else
         snprintf(range, sizeof range, "°%s · %s", f ? "F" : "C",
-                 tr(pl, "No range", "Brak zakresu"));
+                 tr(lang, "No range", "Brak zakresu"));
     if (!rain_outlook(rain, sizeof rain, cfg, w, now))
-        rain_amount(rain, sizeof rain, w, pl);
+        rain_amount(rain, sizeof rain, w, lang);
     if (isfinite(w->wind_speed)) {
-        number(a, sizeof a, clamp(w->wind_speed, 0, 150), 1, pl);
-        snprintf(wind, sizeof wind, pl ? "Wiatr %s m/s" : "Wind %s m/s", a);
+        number(a, sizeof a, clamp(w->wind_speed, 0, 150), 1, lang);
+        snprintf(wind, sizeof wind, tr(lang, "Wind %s m/s", "Wiatr %s m/s"), a);
     } else
-        snprintf(wind, sizeof wind, pl ? "Wiatr —" : "Wind —");
+        snprintf(wind, sizeof wind, "%s", tr(lang, "Wind —", "Wiatr —"));
     snprintf(metrics, sizeof metrics, "%s · %s", rain, wind);
     if (width(1, metrics, sizeof metrics) > 372) {
-        rain_amount(rain, sizeof rain, w, pl);
+        rain_amount(rain, sizeof rain, w, lang);
         snprintf(metrics, sizeof metrics, "%s · %s", rain, wind);
     }
     int raster = c->brush;
     if (style == HOME_RHYTHM) {
-        txt(c, 14, 40, 178, 19, 0, tr(pl, "FORECAST", "PROGNOZA"));
+        txt(c, 14, 40, 178, 19, 0, tr(lang, "FORECAST", "PROGNOZA"));
         txt(c, 12, 56, 174, 82, width(4, value, 32) > 174 ? 3 : 4, value);
         /* Two 30 px lines with descenders need 72 px: large text starts the
          * condition level with the FORECAST label, still above the range. */
-        const char *sky = condition(w, pl);
+        const char *sky = condition(w, lang);
         if (condition_font(cfg, sky, 191) == 3)
             txt(c, 195, 39, 191, 74, 3, sky);
         else
@@ -818,11 +1008,11 @@ static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t 
         if (!graph_valid(w))
             rain_field(c, w, 146, 216);
         rect(c, 14, 219, 372, 18, PAPER);
-        snprintf(label, sizeof label, pl ? "KOLEJNE GODZINY · °%s / mm" : "NEXT HOURS · °%s / mm",
+        snprintf(label, sizeof label, tr(lang, "NEXT HOURS · °%s / mm", "KOLEJNE GODZINY · °%s / mm"),
                  f ? "F" : "C");
         txt(c, 14, 219, 372, 17, 0,
             graph_valid(w) ? label
-                           : tr(pl, "Hourly detail unavailable", "Brak prognozy godzinowej"));
+                           : tr(lang, "Hourly detail unavailable", "Brak prognozy godzinowej"));
         txt(c, 14, 239, 372, 21, 1, metrics);
     } else if (style == HOME_ATLAS) {
         for (int y = 38; y < 250; ++y)
@@ -834,12 +1024,12 @@ static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t 
         c->raster = RASTER_NOISE;
         rain_field(c, w, 218, 256);
         rect(c, 196, 35, 204, 182, PAPER);
-        txt(c, 207, 44, 180, 18, 0, tr(pl, "FORECAST", "PROGNOZA"));
+        txt(c, 207, 44, 180, 18, 0, tr(lang, "FORECAST", "PROGNOZA"));
         /* The range sits under the reading in the paper column, so the rain
          * field under the disc runs without a hole cut for a label. Two 30 px
          * condition lines need 72 px above the reading strip at y 210, so large
          * text lifts the reading and the range by 8 px. */
-        const char *sky = condition(w, pl);
+        const char *sky = condition(w, lang);
         int lift = condition_font(cfg, sky, 179) == 3 ? 8 : 0;
         txt(c, 203, 53 - lift, 183, 66, width(4, value, 32) > 183 ? 3 : 4, value);
         txt(c, 208, 121 - lift, 179, 22, 1, range);
@@ -854,7 +1044,7 @@ static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t 
         else if (width(0, rain, sizeof rain) <= 178)
             txt(c, 208, 218, 178, 17, 0, rain);
         else {
-            rain_amount(rain, sizeof rain, w, pl);
+            rain_amount(rain, sizeof rain, w, lang);
             txt(c, 208, 214, 178, 20, 1, rain);
         }
         txt(c, 208, 236, 178, 20, 1, wind);
@@ -877,11 +1067,11 @@ static void weather(canvas_t *c, const home_config_t *cfg, const home_weather_t 
         disc(c, 300, 119, 89, 78, w);
         c->raster = RASTER_NOISE;
         rain_field(c, w, 218, 233);
-        txt(c, 14, 40, 172, 18, 0, tr(pl, "FORECAST", "PROGNOZA"));
+        txt(c, 14, 40, 172, 18, 0, tr(lang, "FORECAST", "PROGNOZA"));
         /* Range under the reading, condition below it: two lines of either
          * size still end above the rain field, which keeps its whole width. */
         /* Large text needs 74 px for two 30 px lines with descenders. */
-        const char *sky = condition(w, pl);
+        const char *sky = condition(w, lang);
         int lift = condition_font(cfg, sky, 171) == 3 ? 6 : 0;
         txt(c, 12, 56 - lift, 174, 66, width(4, value, 32) > 174 ? 3 : 4, value);
         txt(c, 14, 124 - lift, 170, 22, 1, range);
@@ -932,7 +1122,7 @@ static void signature(canvas_t *c, const char *s, size_t cap, int style, int top
 /* Poster-only layout. Weather, setup, source labels and the existing text()
  * path are unchanged. Measure and paint share exactly the same line breaker. */
 static bool poster_layout(canvas_t *c, int x, int y, int w, int h, int fi, const char *s,
-                          size_t cap, bool compact, bool pl, int *height)
+                          size_t cap, bool compact, int lang, int *height)
 {
     size_t n = bounded(s, cap), at = 0;
     int row = 0, step = home_fonts[fi].size + 4, needed = 0;
@@ -984,7 +1174,7 @@ static bool poster_layout(canvas_t *c, int x, int y, int w, int h, int fi, const
             if (cjk(ch) && !cjk_no_end(ch)) {
                 space = count;
                 space_at = at;
-            } else if (ch == ' ' && pl && one_letter_word(cp, count - 1)) {
+            } else if (ch == ' ' && lang == LANG_PL && one_letter_word(cp, count - 1)) {
                 kept = count - 1;
                 kept_at = at;
             } else if (ch == ' ') {
@@ -1024,7 +1214,7 @@ static void poster_text(canvas_t *c, int x, int y, int w, int h, const char *s, 
     for (int compact = 0; compact < 2; ++compact)
         for (unsigned i = large ? 0 : 1; i < sizeof(candidates) / sizeof(*candidates); ++i) {
             int height, fi = candidates[i];
-            for (int rule = c->pl; rule >= 0; --rule) {
+            for (int rule = c->lang == LANG_PL; rule >= 0; --rule) {
                 if (!poster_layout(NULL, x, y, w, h, fi, s, cap, compact != 0, rule != 0, &height))
                     continue;
                 int offset = (h - height) / 2;
@@ -1039,15 +1229,15 @@ static void poster_text(canvas_t *c, int x, int y, int w, int h, const char *s, 
 }
 static void feed(canvas_t *c, const home_config_t *cfg, const home_feed_t *f, int64_t now)
 {
-    bool pl = polish(cfg);
-    top(c, cfg, tr(pl, "ONE STORY", "JEDNA WIADOMOŚĆ"));
+    int lang = lang_of(cfg);
+    top(c, cfg, tr(lang, "ONE STORY", "JEDNA WIADOMOŚĆ"));
     if (!f->meta.valid || !f->title[0]) {
         empty(c, cfg, HOME_FEED, f->meta.state);
         return;
     }
     int style = cfg->style[HOME_FEED] <= HOME_ATLAS ? cfg->style[HOME_FEED] : HOME_PRINT;
     text(c, 14, 44, 372, 22, 1, BLACK,
-         f->source[0] ? f->source : tr(pl, "Your source", "Twoje źródło"), sizeof f->source);
+         f->source[0] ? f->source : tr(lang, "Your source", "Twoje źródło"), sizeof f->source);
     if (style == HOME_ATLAS) {
         signature(c, f->title, sizeof f->title, style, 76, 246,
                   &(paper_window_t){14, 77, 342, 158});
@@ -1062,12 +1252,12 @@ static void feed(canvas_t *c, const home_config_t *cfg, const home_feed_t *f, in
         poster_text(c, 14, 81, 348, 168, f->title, sizeof f->title, cfg->large_text);
     }
     source_footer(c, cfg, &f->meta, now,
-                  tr(pl, "Full story in phone panel", "Całość w panelu telefonu"), f->published_at);
+                  tr(lang, "Full story in phone panel", "Całość w panelu telefonu"), f->published_at);
 }
 static void note(canvas_t *c, const home_config_t *cfg, int64_t now)
 {
-    bool pl = polish(cfg);
-    top(c, cfg, tr(pl, "YOUR NOTE", "TWOJA KARTKA"));
+    int lang = lang_of(cfg);
+    top(c, cfg, tr(lang, "YOUR NOTE", "TWOJA KARTKA"));
     if (!cfg->note[0]) {
         empty(c, cfg, HOME_NOTE, HOME_EMPTY);
         return;
@@ -1086,7 +1276,7 @@ static void note(canvas_t *c, const home_config_t *cfg, int64_t now)
         poster_text(c, 26, 61, 348, 176, cfg->note, sizeof cfg->note, cfg->large_text);
     }
     rect(c, 14, 267, 372, 1, BLACK);
-    txt(c, 14, 277, 220, 19, 0, tr(pl, "Yours to keep in view.", "Warto mieć to na widoku."));
+    txt(c, 14, 277, 220, 19, 0, tr(lang, "Yours to keep in view.", "Warto mieć to na widoku."));
     txt(c, 270, 277, 116, 19, 0, "emini.ink/home");
     (void)now;
 }
@@ -1097,13 +1287,15 @@ static void note(canvas_t *c, const home_config_t *cfg, int64_t now)
  * (D-HOME-CC-24): the PM2.5 scale is one warm ramp paper -> yellow -> red, so good air is a
  * light yellow tone and bad air a deep red; beyond the European scale the field is solid red
  * with a black outline. The red "now" marks and the UV sun are the accents. */
-static const char *level_name(int level, bool pl)
+static const char *level_name(int level, int lang)
 {
     static const char *const en[6] = {"Very good", "Good", "Moderate", "Poor", "Very poor", "Extremely poor"};
     static const char *const po[6] = {"Bardzo dobre", "Dobre", "Umiarkowane", "Złe", "Bardzo złe", "Skrajnie złe"};
+    static const char *const zh[6] = {"很好", "良好", "中等",
+                                      "较差", "很差", "极差"};
     if (level < 0 || level > 5)
-        return tr(pl, "No index", "Brak indeksu");
-    return (pl ? po : en)[level];
+        return tr(lang, "No index", "Brak indeksu");
+    return words(lang, en, po, zh)[level];
 }
 /* European index bands for PM2.5 in ug/m3 (EEA): 10, 20, 25, 50, 75. */
 static int pm25_level(double v)
@@ -1163,14 +1355,16 @@ static int uv_level(double uv)
         return -1;
     return uv < 3 ? 0 : uv < 6 ? 1 : uv < 8 ? 2 : uv < 11 ? 3 : 4;
 }
-static const char *uv_name(int level, bool pl)
+static const char *uv_name(int level, int lang)
 {
     static const char *const en[5] = {"low", "moderate", "high", "very high", "extreme"};
     static const char *const po[5] = {"niskie", "umiarkowane", "wysokie", "bardzo wysokie", "ekstremalne"};
-    return level < 0 ? "" : (pl ? po : en)[level];
+    static const char *const zh[5] = {"低", "中等", "高", "很高",
+                                      "极高"};
+    return level < 0 ? "" : words(lang, en, po, zh)[level];
 }
 /* "UV 6 · high · sunscreen from 11:00"; the hour is the first with UV >= 3 today. */
-static void uv_line(char *out, size_t len, const home_config_t *cfg, const home_air_t *a, bool pl)
+static void uv_line(char *out, size_t len, const home_config_t *cfg, const home_air_t *a, int lang)
 {
     int level = uv_level(a->uv_index);
     if (level < 0) {
@@ -1178,7 +1372,7 @@ static void uv_line(char *out, size_t len, const home_config_t *cfg, const home_
         return;
     }
     char v[16], when[64] = "";
-    number(v, sizeof v, clamp(a->uv_index, 0, 20), 0, pl);
+    number(v, sizeof v, clamp(a->uv_index, 0, 20), 0, lang);
     int first = -1;
     for (int k = 0; k < imin(a->hourly_count, HOME_AIR_HOURS); ++k)
         if (isfinite(a->hourly_uv[k]) && a->hourly_uv[k] >= 3) {
@@ -1186,16 +1380,16 @@ static void uv_line(char *out, size_t len, const home_config_t *cfg, const home_
             break;
         }
     if (first == 0)
-        snprintf(when, sizeof when, " · %s", tr(pl, "sunscreen now", "krem teraz"));
+        snprintf(when, sizeof when, " · %s", tr(lang, "sunscreen now", "krem teraz"));
     else if (first > 0 && time_valid(a->forecast_at)) {
         struct tm at;
         if (home_tz_localtime(cfg->timezone, a->forecast_at + (int64_t)first * 3600, &at)) {
             char t[24];
             clock_text(t, sizeof t, &at, cfg->clock24, false, false);
-            snprintf(when, sizeof when, pl ? " · krem od %s" : " · sunscreen from %s", t);
+            snprintf(when, sizeof when, tr(lang, " · sunscreen from %s", " · krem od %s"), t);
         }
     }
-    snprintf(out, len, "UV %s · %s%s", v, uv_name(level, pl), when);
+    snprintf(out, len, "UV %s · %s%s", v, uv_name(level, lang), when);
 }
 /* The UV sun: a disc that grows and reddens with the index, with eight rays. */
 static void uv_sun(canvas_t *c, int cx, int cy, double uv, double size)
@@ -1230,15 +1424,16 @@ static int pollen_level(int kind, double v)
     double mid = kind == HOME_POLLEN_GRASS ? 5 : 20, hi = kind == HOME_POLLEN_GRASS ? 20 : 80;
     return v < 1 ? 0 : v < mid ? 1 : v < hi ? 2 : 3;
 }
-static const char *pollen_name(int kind, bool pl)
+static const char *pollen_name(int kind, int lang)
 {
     static const char *const en[4] = {"Alder", "Birch", "Grass", "Mugwort"};
     static const char *const po[4] = {"Olcha", "Brzoza", "Trawy", "Bylica"};
-    return (pl ? po : en)[kind & 3];
+    static const char *const zh[4] = {"桤木", "桦树", "禾草", "艾蒿"};
+    return words(lang, en, po, zh)[kind & 3];
 }
 /* Four tiles "Birch ●●●○": 6 px dots, yellow for low, orange for moderate, red for high;
  * hidden when the data has no pollen (outside Europe). */
-static int pollen_row(canvas_t *c, const home_air_t *a, int x, int y, int w, bool pl, bool list)
+static int pollen_row(canvas_t *c, const home_air_t *a, int x, int y, int w, int lang, bool list)
 {
     int shown = 0;
     for (int k = 0; k < HOME_POLLEN_COUNT; ++k)
@@ -1253,7 +1448,7 @@ static int pollen_row(canvas_t *c, const home_air_t *a, int x, int y, int w, boo
         int level = pollen_level(k, a->pollen[k]);
         int tx = list ? x : x + i * (w / shown), ty = list ? y + i * 20 : y;
         int tw = list ? w - 30 : w / shown - 30;
-        const char *name = pollen_name(k, pl);
+        const char *name = pollen_name(k, lang);
         if (width(1, name, 16) <= tw)
             txt(c, tx, ty, tw, 20, 1, name);
         else
@@ -1281,7 +1476,7 @@ static int pollen_row(canvas_t *c, const home_air_t *a, int x, int y, int w, boo
     return shown;
 }
 static void air_headline(char *value, size_t vlen, char *word, size_t wlen, const home_config_t *cfg,
-                         const home_air_t *a, bool pl, int *level)
+                         const home_air_t *a, int lang, int *level)
 {
     *level = home_air_level(a->european_aqi);
     if (*level < 0)
@@ -1289,24 +1484,24 @@ static void air_headline(char *value, size_t vlen, char *word, size_t wlen, cons
     if (cfg->air_main == 1 && a->us_aqi >= 0)
         snprintf(value, vlen, "%d", a->us_aqi);
     else if (cfg->air_main == 2 && isfinite(a->pm2_5))
-        number(value, vlen, clamp(a->pm2_5, 0, 999), 0, pl);
+        number(value, vlen, clamp(a->pm2_5, 0, 999), 0, lang);
     else if (a->european_aqi >= 0)
         snprintf(value, vlen, "%d", a->european_aqi);
     else if (isfinite(a->pm2_5))
-        number(value, vlen, clamp(a->pm2_5, 0, 999), 0, pl);
+        number(value, vlen, clamp(a->pm2_5, 0, 999), 0, lang);
     else
         snprintf(value, vlen, "—");
-    snprintf(word, wlen, "%s", level_name(*level, pl));
+    snprintf(word, wlen, "%s", level_name(*level, lang));
 }
-static void air_metrics(char *out, size_t len, const home_config_t *cfg, const home_air_t *a, bool pl)
+static void air_metrics(char *out, size_t len, const home_config_t *cfg, const home_air_t *a, int lang)
 {
     char pm[24], pm10[24], us[24];
     if (isfinite(a->pm2_5))
-        number(pm, sizeof pm, clamp(a->pm2_5, 0, 999), 0, pl);
+        number(pm, sizeof pm, clamp(a->pm2_5, 0, 999), 0, lang);
     else
         snprintf(pm, sizeof pm, "—");
     if (isfinite(a->pm10))
-        number(pm10, sizeof pm10, clamp(a->pm10, 0, 999), 0, pl);
+        number(pm10, sizeof pm10, clamp(a->pm10, 0, 999), 0, lang);
     else
         snprintf(pm10, sizeof pm10, "—");
     if (a->us_aqi >= 0)
@@ -1344,8 +1539,8 @@ static void air_bars(canvas_t *c, const home_air_t *a, int x, int y, int w, int 
 }
 static void air(canvas_t *c, const home_config_t *cfg, const home_air_t *a, int64_t now)
 {
-    bool pl = polish(cfg);
-    top(c, cfg, tr(pl, "AIR", "POWIETRZE"));
+    int lang = lang_of(cfg);
+    top(c, cfg, tr(lang, "AIR", "POWIETRZE"));
     if (!a->meta.valid) {
         empty(c, cfg, HOME_AIR, a->meta.state);
         return;
@@ -1353,15 +1548,15 @@ static void air(canvas_t *c, const home_config_t *cfg, const home_air_t *a, int6
     int style = cfg->style[HOME_AIR] <= HOME_ATLAS ? cfg->style[HOME_AIR] : HOME_PRINT;
     int level;
     char value[24], word[40], uv[96], metrics[96];
-    air_headline(value, sizeof value, word, sizeof word, cfg, a, pl, &level);
-    uv_line(uv, sizeof uv, cfg, a, pl);
-    air_metrics(metrics, sizeof metrics, cfg, a, pl);
-    const char *unit = cfg->air_main == 2 ? tr(pl, "PM2.5 in µg per m3", "PM2.5 w µg na m3")
+    air_headline(value, sizeof value, word, sizeof word, cfg, a, lang, &level);
+    uv_line(uv, sizeof uv, cfg, a, lang);
+    air_metrics(metrics, sizeof metrics, cfg, a, lang);
+    const char *unit = cfg->air_main == 2 ? tr(lang, "PM2.5 in µg per m3", "PM2.5 w µg na m3")
                        : cfg->air_main == 1 ? "US AQI"
-                                            : tr(pl, "EU index", "Indeks EU");
+                                            : tr(lang, "EU index", "Indeks EU");
     int raster = c->brush, n = imin(a->hourly_count, HOME_AIR_HOURS);
     if (style == HOME_RHYTHM) {
-        txt(c, 14, 40, 178, 19, 0, tr(pl, "AIR QUALITY", "JAKOŚĆ POWIETRZA"));
+        txt(c, 14, 40, 178, 19, 0, tr(lang, "AIR QUALITY", "JAKOŚĆ POWIETRZA"));
         txt(c, 14, 56, 214, 40, width(3, word, sizeof word) > 214 ? 2 : 3, word);
         txt(c, 14, 90, 200, 18, 0, unit);
         txt(c, 240, 42, 146, 60, width(5, value, sizeof value) > 146 ? 7 : 5, value);
@@ -1427,7 +1622,7 @@ static void air(canvas_t *c, const home_config_t *cfg, const home_air_t *a, int6
         rect(c, gx, gy + gh, gw, 1, BLACK);
         rect(c, gx, gy - 2, 1, gh + 3, BLACK); /* axis; the left edge is now */
         txt(c, 14, 215, 372, 17, 0,
-            tr(pl, "NEXT 24 H · PM2.5, UV IN YELLOW", "KOLEJNE 24 H · PM2.5, UV NA ŻÓŁTO"));
+            tr(lang, "NEXT 24 H · PM2.5, UV IN YELLOW", "KOLEJNE 24 H · PM2.5, UV NA ŻÓŁTO"));
         txt(c, 14, 236, 372, 21, 1, uv);
     } else if (style == HOME_ATLAS) {
         /* The dial: 24 hour segments clockwise from now at the top, each in the tone of its
@@ -1474,12 +1669,12 @@ static void air(canvas_t *c, const home_config_t *cfg, const home_air_t *a, int6
         txt(c, 208, 62, 178, width(3, word, sizeof word) > 178 ? 60 : 36, width(3, word, sizeof word) > 178 ? 2 : 3, word);
         scale_bar(c, 208, 104, 178, 5, a->pm2_5);
         uv_sun(c, 368, 50, a->uv_index, 0.6);
-        txt(c, 208, 44, 140, 18, 0, tr(pl, "AIR QUALITY", "JAKOŚĆ POWIETRZA"));
+        txt(c, 208, 44, 140, 18, 0, tr(lang, "AIR QUALITY", "JAKOŚĆ POWIETRZA"));
         txt(c, 208, 124, 178, 40, 1, uv);
-        pollen_row(c, a, 208, 170, 178, pl, true);
+        pollen_row(c, a, 208, 170, 178, lang, true);
         txt(c, 14, 245, 372, 14, 0, metrics);
     } else {
-        txt(c, 14, 40, 172, 18, 0, tr(pl, "AIR QUALITY", "JAKOŚĆ POWIETRZA"));
+        txt(c, 14, 40, 172, 18, 0, tr(lang, "AIR QUALITY", "JAKOŚĆ POWIETRZA"));
         txt(c, 12, 56, 174, 66, width(4, value, sizeof value) > 174 ? 3 : 4, value);
         txt(c, 14, 124, 170, 18, 0, unit);
         txt(c, 14, 142, 176, width(3, word, sizeof word) > 176 ? 60 : 36, width(3, word, sizeof word) > 176 ? 2 : 3, word);
@@ -1488,12 +1683,12 @@ static void air(canvas_t *c, const home_config_t *cfg, const home_air_t *a, int6
         air_bars(c, a, 200, 66, 186, 66);
         c->raster = RASTER_NOISE;
         uv_sun(c, 368, 48, a->uv_index, 0.6);
-        txt(c, 200, 136, 90, 17, 0, tr(pl, "NOW", "TERAZ"));
+        txt(c, 200, 136, 90, 17, 0, tr(lang, "NOW", "TERAZ"));
         txt(c, 300, 136, 86, 17, 0, "+24 h");
         txt(c, 14, 194, 372, 20, 1, uv);
-        if (!pollen_row(c, a, 14, 216, 372, pl, false))
+        if (!pollen_row(c, a, 14, 216, 372, lang, false))
             txt(c, 14, 216, 372, 20, 1,
-                tr(pl, "No pollen forecast for this place", "Brak prognozy pyłków dla tego miejsca"));
+                tr(lang, "No pollen forecast for this place", "Brak prognozy pyłków dla tego miejsca"));
         txt(c, 14, 241, 372, 17, 0, metrics);
     }
     source_footer(c, cfg, &a->meta, now, "Open-Meteo · CC BY 4.0", a->forecast_at);
@@ -1509,7 +1704,7 @@ static void status(canvas_t *c, const char *name, size_t cap, const char *title,
     text(c, 14, 163, 372, 80, 1, BLACK, body ? body : "", 512);
     signature(c, title ? title : "Home", 256, HOME_PRINT, 251, 270, NULL);
     /* The panel is local; the web address is where help lives. */
-    txt(c, 14, 279, 372, 18, 0, tr(c->pl, "Help · emini.ink/home", "Pomoc · emini.ink/home"));
+    txt(c, 14, 279, 372, 18, 0, tr(c->lang, "Help · emini.ink/home", "Pomoc · emini.ink/home"));
 }
 /* ---- Sky: the sun and the moon, computed on the device ------------------
  * One local day fills the screen: the horizontal axis runs from local midnight
@@ -1568,86 +1763,110 @@ static bool event_clock(char *out, size_t len, const home_config_t *cfg, int64_t
  * why it does neither. */
 static void sun_hours_text(char *out, size_t len, const home_config_t *cfg, const home_sky_t *s)
 {
-    bool pl = polish(cfg);
+    int lang = lang_of(cfg);
     char a[24], b[24];
     if (s->polar_day)
-        snprintf(out, len, "%s", tr(pl, "The sun does not set today", "Słońce dziś nie zachodzi"));
+        snprintf(out, len, "%s", tr(lang, "The sun does not set today", "Słońce dziś nie zachodzi"));
     else if (s->polar_night)
-        snprintf(out, len, "%s", tr(pl, "The sun does not rise today", "Słońce dziś nie wschodzi"));
+        snprintf(out, len, "%s", tr(lang, "The sun does not rise today", "Słońce dziś nie wschodzi"));
     else if (!event_clock(a, sizeof a, cfg, s->sunrise, !cfg->clock24) ||
              !event_clock(b, sizeof b, cfg, s->sunset, !cfg->clock24))
-        snprintf(out, len, "%s", tr(pl, "Sunrise and sunset unknown", "Wschód i zachód nieznane"));
+        snprintf(out, len, "%s", tr(lang, "Sunrise and sunset unknown", "Wschód i zachód nieznane"));
     else
-        snprintf(out, len, pl ? "Wschód %s · Zachód %s" : "Sunrise %s · Sunset %s", a, b);
+        snprintf(out, len, tr(lang, "Sunrise %s · Sunset %s", "Wschód %s · Zachód %s"), a, b);
 }
 /* "day 12 h 08 min (-4 min)": the length of this day and its change on yesterday. */
 static void day_length_text(char *out, size_t len, const home_config_t *cfg, const home_sky_t *s)
 {
-    bool pl = polish(cfg);
+    int lang = lang_of(cfg);
     char delta[24];
     int minutes = (int)((s->day_length_s + 30) / 60), change = (int)(s->day_length_delta_s / 60);
     if (s->polar_day || s->polar_night) {
         snprintf(out, len, "%s",
-                 s->polar_day ? tr(pl, "daylight all day", "światło przez całą dobę")
-                              : tr(pl, "no daylight today", "dziś bez światła dnia"));
+                 s->polar_day ? tr(lang, "daylight all day", "światło przez całą dobę")
+                              : tr(lang, "no daylight today", "dziś bez światła dnia"));
         return;
     }
     if (!change) {
-        snprintf(out, len, pl ? "dzień %d h %02d min" : "day %d h %02d min", minutes / 60,
+        snprintf(out, len, tr(lang, "day %d h %02d min", "dzień %d h %02d min"), minutes / 60,
                  minutes % 60);
         return;
     }
-    number(delta, sizeof delta, change, 0, pl);
-    snprintf(out, len, pl ? "dzień %d h %02d min (%s%s min)" : "day %d h %02d min (%s%s min)",
+    number(delta, sizeof delta, change, 0, lang);
+    snprintf(out, len, tr(lang, "day %d h %02d min (%s%s min)", "dzień %d h %02d min (%s%s min)"),
              minutes / 60, minutes % 60, change > 0 ? "+" : "", delta);
 }
-static const char *moon_name(int phase, bool pl)
+static const char *moon_name(int phase, int lang)
 {
     switch (phase) {
     case HOME_MOON_WAXING_CRESCENT:
-        return tr(pl, "Waxing crescent", "Przybywający sierp");
+        return tr(lang, "Waxing crescent", "Przybywający sierp");
     case HOME_MOON_FIRST_QUARTER:
-        return tr(pl, "First quarter", "Pierwsza kwadra");
+        return tr(lang, "First quarter", "Pierwsza kwadra");
     case HOME_MOON_WAXING_GIBBOUS:
-        return tr(pl, "Waxing gibbous", "Przybywający garb");
+        return tr(lang, "Waxing gibbous", "Przybywający garb");
     case HOME_MOON_FULL:
-        return tr(pl, "Full moon", "Pełnia");
+        return tr(lang, "Full moon", "Pełnia");
     case HOME_MOON_WANING_GIBBOUS:
-        return tr(pl, "Waning gibbous", "Ubywający garb");
+        return tr(lang, "Waning gibbous", "Ubywający garb");
     case HOME_MOON_LAST_QUARTER:
-        return tr(pl, "Last quarter", "Ostatnia kwadra");
+        return tr(lang, "Last quarter", "Ostatnia kwadra");
     case HOME_MOON_WANING_CRESCENT:
-        return tr(pl, "Waning crescent", "Ubywający sierp");
+        return tr(lang, "Waning crescent", "Ubywający sierp");
     default:
-        return tr(pl, "New moon", "Nów");
+        return tr(lang, "New moon", "Nów");
     }
 }
 /* Whichever of the next full and the next new moon comes first. */
-static void moon_note(char *out, size_t len, const home_sky_t *s, bool pl)
+static void moon_note(char *out, size_t len, const home_sky_t *s, int lang)
 {
     bool full = s->days_to_full <= s->days_to_new;
     int days = full ? s->days_to_full : s->days_to_new;
     if (!days)
         snprintf(out, len, "%s",
-                 full ? tr(pl, "Full today", "Pełnia dziś") : tr(pl, "New today", "Nów dziś"));
+                 full ? tr(lang, "Full today", "Pełnia dziś") : tr(lang, "New today", "Nów dziś"));
     else if (full)
-        snprintf(out, len, pl ? "Pełnia za %d dni" : "Full in %d days", days);
+        snprintf(out, len, tr(lang, "Full in %d days", "Pełnia za %d dni"), days);
     else
-        snprintf(out, len, pl ? "Nów za %d dni" : "New in %d days", days);
+        snprintf(out, len, tr(lang, "New in %d days", "Nów za %d dni"), days);
 }
-static void moon_lit_text(char *out, size_t len, const home_sky_t *s, bool pl)
+static void moon_lit_text(char *out, size_t len, const home_sky_t *s, int lang)
 {
     char value[24];
-    number(value, sizeof value, clamp(s->moon_fraction * 100.0, 0, 100), 0, pl);
-    snprintf(out, len, pl ? "Oświetlony %s%%" : "Lit %s%%", value);
+    number(value, sizeof value, clamp(s->moon_fraction * 100.0, 0, 100), 0, lang);
+    snprintf(out, len, tr(lang, "Lit %s%%", "Oświetlony %s%%"), value);
 }
 /* The largest of the offered fonts whose single line fits the width. */
+/* A size the font cannot draw is not a candidate: the CJK tables exist at 30, 22, 16 and 12 px
+ * only, so a Chinese word offered a 64 px slot would come out as rows of '?'. Whoever picks a
+ * size has to ask whether that size can draw this text (0.5.1, the third language). */
+static bool drawable(int fi, const char *s, size_t cap)
+{
+    size_t at = 0, n = bounded(s, cap);
+    while (at < n) {
+        uint32_t cp = next_cp(s, n, &at);
+        if (cp != ' ' && !has_glyph(fi, cp))
+            return false;
+    }
+    return true;
+}
+/* The last size of the list is the floor; if even that cannot draw the text, the smallest
+ * size that can wins, so a fallback is always a readable one. */
+static int fit_floor(const char *s, const int *order, int n)
+{
+    if (drawable(order[n - 1], s, 256))
+        return order[n - 1];
+    for (int fi = 0; fi < 8; ++fi)
+        if (drawable(fi, s, 256))
+            return fi;
+    return order[n - 1];
+}
 static int fit_font(const char *s, int w, const int *order, int n)
 {
     for (int i = 0; i < n; ++i)
-        if (width(order[i], s, 256) <= w)
+        if (drawable(order[i], s, 256) && width(order[i], s, 256) <= w)
             return order[i];
-    return order[n - 1];
+    return fit_floor(s, order, n);
 }
 /* The largest of the offered fonts with no word wider than the box, so text()
  * wraps between words instead of cutting one with an ellipsis. */
@@ -1663,10 +1882,10 @@ static int fit_wrapped(const char *s, int w, const int *order, int n)
             if (word > worst)
                 worst = word;
         }
-        if (worst <= w)
+        if (worst <= w && drawable(order[i], s, len + 1))
             return order[i];
     }
-    return order[n - 1];
+    return fit_floor(s, order, n);
 }
 /* The colour of the sky at a solar altitude, as three pigments for mix3()
  * (D-HOME-CC-24: every screen uses all four). The ramp runs paper and yellow by
@@ -1950,12 +2169,12 @@ static void sky_sun_on_curve(canvas_t *c, const sky_t *k, int x, int y, int w, i
 }
 static void sky_footer(canvas_t *c, const home_config_t *cfg, int64_t now)
 {
-    bool pl = polish(cfg);
+    int lang = lang_of(cfg);
     char date[64];
-    stamp(date, sizeof date, now, pl, cfg->clock24, cfg->timezone);
+    stamp(date, sizeof date, now, lang, cfg->clock24, cfg->timezone);
     rect(c, 14, 261, 372, 1, BLACK);
     txt(c, 14, 265, 372, 17, 0,
-        tr(pl, "Computed on the device · nothing downloaded",
+        tr(lang, "Computed on the device · nothing downloaded",
            "Liczone na urządzeniu · nic nie pobiera"));
     txt(c, 14, 281, 200, 17, 0, date);
     int tw = width(0, cfg->location, sizeof cfg->location);
@@ -1964,7 +2183,7 @@ static void sky_footer(canvas_t *c, const home_config_t *cfg, int64_t now)
 }
 static void sky(canvas_t *c, const home_config_t *cfg, int64_t now)
 {
-    bool pl = polish(cfg);
+    int lang = lang_of(cfg);
     int style = cfg->style[HOME_SKY] <= HOME_ATLAS ? cfg->style[HOME_SKY] : HOME_PRINT;
     static const int head[] = {4, 5, 7, 3, 2}, small[] = {1, 0}, larger[] = {2, 1, 0};
     static const int title[] = {3, 2, 1}, wide[] = {3, 2, 1, 0};
@@ -1972,15 +2191,15 @@ static void sky(canvas_t *c, const home_config_t *cfg, int64_t now)
     char hours[96], length[96], label[64], value[64], note[168], lit[48];
 
     if (!cfg->location_ready) {
-        top(c, cfg, tr(pl, "SKY", "NIEBO"));
+        top(c, cfg, tr(lang, "SKY", "NIEBO"));
         empty(c, cfg, HOME_SKY, HOME_EMPTY);
         return;
     }
     c->raster = c->brush; /* the user's brush on the sky's tones (D-HOME-CC-23) */
     if (!time_valid(now) || !sky_midnight(cfg->timezone, now, &k.midnight) ||
         !home_sky_day(cfg->latitude, cfg->longitude, k.midnight, &k.s)) {
-        status(c, cfg->name, sizeof cfg->name, tr(pl, "Sky needs the time.", "Niebo czeka na czas."),
-               tr(pl,
+        status(c, cfg->name, sizeof cfg->name, tr(lang, "Sky needs the time.", "Niebo czeka na czas."),
+               tr(lang,
                   "Home reads the clock from the internet, and the sun and the moon appear here as "
                   "soon as it has one.",
                   "Home bierze godzinę z internetu — słońce i księżyc pojawią się tutaj, gdy tylko "
@@ -1990,11 +2209,11 @@ static void sky(canvas_t *c, const home_config_t *cfg, int64_t now)
     k.now = now;
     k.lat = cfg->latitude;
     k.lon = cfg->longitude;
-    top(c, cfg, tr(pl, "SKY", "NIEBO"));
+    top(c, cfg, tr(lang, "SKY", "NIEBO"));
     sun_hours_text(hours, sizeof hours, cfg, &k.s);
     day_length_text(length, sizeof length, cfg, &k.s);
-    moon_note(note, sizeof note, &k.s, pl);
-    moon_lit_text(lit, sizeof lit, &k.s, pl);
+    moon_note(note, sizeof note, &k.s, lang);
+    moon_lit_text(lit, sizeof lit, &k.s, lang);
     bool waxing =
         k.s.moon_phase >= HOME_MOON_WAXING_CRESCENT && k.s.moon_phase <= HOME_MOON_WAXING_GIBBOUS;
     int hours_font =
@@ -2009,12 +2228,12 @@ static void sky(canvas_t *c, const home_config_t *cfg, int64_t now)
         sky_sun_on_curve(c, &k, 14, 80, 372, 130);
         sky_now(c, &k, 14, 80, 372, 130);
         sky_hours_axis(c, cfg, 14, 209, 372);
-        snprintf(value, sizeof value, "%s · %s", moon_name(k.s.moon_phase, pl), lit);
+        snprintf(value, sizeof value, "%s · %s", moon_name(k.s.moon_phase, lang), lit);
         txt(c, 14, 230, 372, 30,
             cfg->large_text ? fit_font(value, 372, larger, 3) : fit_font(value, 372, small, 2),
             value);
     } else if (style == HOME_ATLAS) {
-        const char *name = moon_name(k.s.moon_phase, pl);
+        const char *name = moon_name(k.s.moon_phase, lang);
         txt(c, 14, 42, 184, 72, fit_wrapped(name, 184, title, 3), name);
         txt(c, 14, 120, 184, 21, 1, lit);
         txt(c, 14, 144, 184, 21, 1, note);
@@ -2028,12 +2247,12 @@ static void sky(canvas_t *c, const home_config_t *cfg, int64_t now)
         bool up = home_sky_altitude(k.lat, k.lon, now) >= 0;
         if (k.s.polar_day || k.s.polar_night) {
             snprintf(label, sizeof label, "%s",
-                     k.s.polar_day ? tr(pl, "Midnight sun", "Dzień polarny")
-                                   : tr(pl, "Polar night", "Noc polarna"));
+                     k.s.polar_day ? tr(lang, "Midnight sun", "Dzień polarny")
+                                   : tr(lang, "Polar night", "Noc polarna"));
             snprintf(value, sizeof value, "%d h", k.s.polar_day ? 24 : 0);
         } else {
             snprintf(label, sizeof label, "%s",
-                     up ? tr(pl, "Sunset", "Zachód") : tr(pl, "Sunrise", "Wschód"));
+                     up ? tr(lang, "Sunset", "Zachód") : tr(lang, "Sunrise", "Wschód"));
             if (!event_clock(value, sizeof value, cfg, up ? k.s.sunset : k.s.sunrise, !cfg->clock24))
                 snprintf(value, sizeof value, "—");
         }
@@ -2058,10 +2277,10 @@ void home_render(const home_config_t *cfg, const home_data_t *data, home_screen_
     if (!cfg || !data)
         return;
     canvas_t c = {frame, (cfg->texture == 2 || cfg->texture == 4) ? cfg->texture : 1,
-                  imin(cfg->intensity, 2), polish(cfg), RASTER_NOISE,
+                  imin(cfg->intensity, 2), lang_of(cfg), RASTER_NOISE,
                   cfg->brush <= RASTER_GRID ? cfg->brush : RASTER_NOISE};
     if (screen == HOME_WEATHER && !cfg->location_ready) {
-        top(&c, cfg, tr(c.pl, "Weather", "Pogoda"));
+        top(&c, cfg, tr(c.lang, "Weather", "Pogoda"));
         empty(&c, cfg, HOME_WEATHER, HOME_EMPTY);
     } else if (screen == HOME_WEATHER)
         weather(&c, cfg, &data->weather, now);
@@ -2075,32 +2294,150 @@ void home_render(const home_config_t *cfg, const home_data_t *data, home_screen_
         note(&c, cfg, now);
     else {
         /* Status keeps its fixed texture and intensity, as home_render_status() does. */
-        canvas_t card = {frame, 1, 2, c.pl, RASTER_NOISE, RASTER_NOISE};
+        canvas_t card = {frame, 1, 2, c.lang, RASTER_NOISE, RASTER_NOISE};
         /* Air exists in the settings since 0.5.0; its card comes next. */
-        const char *title = screen == HOME_AIR ? tr(c.pl, "Air", "Powietrze")
-                                               : tr(c.pl, "Choose a screen.", "Wybierz ekran.");
+        const char *title = screen == HOME_AIR ? tr(c.lang, "Air", "Powietrze")
+                                               : tr(c.lang, "Choose a screen.", "Wybierz ekran.");
         const char *body =
             screen == HOME_AIR
-                ? tr(c.pl, "This screen arrives with the next update.",
+                ? tr(c.lang, "This screen arrives with the next update.",
                      "Ten ekran pojawi się w następnej aktualizacji.")
-                : tr(c.pl, "Open the panel on your phone and choose what Home shows.",
+                : tr(c.lang, "Open the panel on your phone and choose what Home shows.",
                      "Otwórz panel w telefonie i wybierz, co ma pokazywać Home.");
         status(&card, cfg->name, sizeof cfg->name, title, body);
     }
 }
+/* ---- The "emini" card (0.6): what the device knows about itself. One screen you reach with
+ * the button: battery with an estimate the device measured on itself, a few counters, a week of
+ * battery, and a code that leads to the site. Colour carries meaning here too: the battery ramp
+ * runs paper -> yellow -> red as it empties. */
+static int battery_pigment(canvas_t *c, int x, int y, int percent)
+{
+    float t = 1.0f - (float)clamp(percent, 0, 100) / 100.0f; /* 0 full, 1 empty */
+    return mix3(c, x, y, PAPER, YELLOW, RED, (1 - t) * (1 - t) * 1.2f, 2 * t * (1 - t) + 0.25f,
+                t * t * 1.4f);
+}
+static void battery_bar(canvas_t *c, int x, int y, int w, int h, int percent, bool charging)
+{
+    rect(c, x, y, w, h, BLACK);
+    rect(c, x + 2, y + 2, w - 4, h - 4, PAPER);
+    rect(c, x + w, y + h / 3, 4, h / 3, BLACK); /* the cap of a battery */
+    int fill = percent < 0 ? 0 : (w - 6) * clamp(percent, 0, 100) / 100;
+    for (int yy = y + 3; yy < y + h - 3; ++yy)
+        for (int xx = x + 3; xx < x + 3 + fill; ++xx)
+            pixel(c, xx, yy, battery_pigment(c, xx, yy, percent));
+    if (charging) /* a bolt in the empty part, drawn in the ink of the fill */
+        for (int k = 0; k < 14; ++k) {
+            int bx = x + w / 2 - 4 + (k < 7 ? k : 13 - k) / 2, by = y + 5 + k;
+            rect(c, bx, by, 3, 1, BLACK);
+        }
+}
+static void info_number(canvas_t *c, int x, int y, int w, const char *label, const char *value)
+{
+    txt(c, x, y, w, 15, 0, label);
+    txt(c, x, y + 15, w, 26, 2, value);
+}
+static void info_week(canvas_t *c, const home_stats_t *s, int x, int y, int w, int h, int lang)
+{
+    txt(c, x, y, w, 15, 0, tr(lang, "BATTERY · LAST SEVEN DAYS", "BATERIA · OSTATNIE SIEDEM DNI"));
+    int top = y + 18, hh = h - 22, pitch = w / HOME_BATTERY_DAYS;
+    rect(c, x, top + hh, w, 1, BLACK);
+    for (int k = 0; k < HOME_BATTERY_DAYS; ++k) {
+        int day = s->battery_day[HOME_BATTERY_DAYS - 1 - k];
+        int bx = x + k * pitch + 2, bw = (pitch - 6) & ~1;
+        if (day < 0) {
+            for (int yy = top + hh - 4; yy < top + hh; yy += 2)
+                for (int xx = bx; xx < bx + bw; xx += 2)
+                    pixel(c, xx, yy, BLACK);
+            continue;
+        }
+        int bh = imax(4, (hh - 2) * clamp(day, 0, 100) / 100) & ~1;
+        for (int yy = top + hh - bh; yy < top + hh; ++yy)
+            for (int xx = bx; xx < bx + bw; ++xx)
+                pixel(c, xx, yy, battery_pigment(c, xx, yy, day));
+    }
+    txt(c, x + w - 46, y, 46, 15, 0, tr(lang, "TODAY", "DZIŚ"));
+}
+void home_render_info(const home_config_t *cfg, const home_stats_t *s, int64_t now,
+                      uint8_t frame[HOME_FRAME_BYTES])
+{
+    if (!frame || !cfg || !s)
+        return;
+    memset(frame, 0x55, HOME_FRAME_BYTES);
+    canvas_t c = {frame, (cfg->texture == 2 || cfg->texture == 4) ? cfg->texture : 1,
+                  imin(cfg->intensity, 2), lang_of(cfg), RASTER_NOISE,
+                  cfg->brush <= RASTER_GRID ? cfg->brush : RASTER_NOISE};
+    int lang = c.lang;
+    top(&c, cfg, "EMINI");
+    char value[32], line[96], a[24];
+    /* A faint warm panel behind the counters: the right half of this card is otherwise all
+     * black text, and the screen has four pigments (D-HOME-CC-24). */
+    for (int y = 36; y < 170; ++y) {
+        float fade = 0.17f * (1.0f - (float)((y & ~1) - 36) / 134.0f);
+        for (int x = 198; x < 390; ++x)
+            pixel(&c, x, y, mix(&c, x, y, PAPER, YELLOW, fade));
+    }
+    /* Battery, the loudest thing on this card. */
+    txt(&c, 14, 40, 176, 15, 0, tr(lang, "BATTERY", "BATERIA"));
+    if (s->percent >= 0)
+        snprintf(value, sizeof value, "%d%%", s->percent);
+    else
+        snprintf(value, sizeof value, "—");
+    txt(&c, 12, 54, 178, 62, 4, value);
+    if (s->charging)
+        snprintf(line, sizeof line, "%s", s->full ? tr(lang, "Charged", "Naładowana")
+                                                  : tr(lang, "Charging", "Ładuje się"));
+    else if (s->estimate_hours >= 48)
+        snprintf(line, sizeof line, tr(lang, "About %d days", "Około %d dni"), s->estimate_hours / 24);
+    else if (s->estimate_hours >= 0)
+        snprintf(line, sizeof line, tr(lang, "About %d h", "Około %d h"), s->estimate_hours);
+    else
+        snprintf(line, sizeof line, "%s",
+                 tr(lang, "Learning how long a charge lasts", "Uczy się, na jak długo starcza"));
+    txt(&c, 14, 118, 176, 24, 1, line);
+    battery_bar(&c, 14, 146, 168, 26, s->percent, s->charging);
+    /* Counters: the numbers people photograph. */
+    snprintf(value, sizeof value, "%lu", (unsigned long)s->pictures);
+    info_number(&c, 208, 40, 178, tr(lang, "PICTURES DRAWN", "NARYSOWANYCH OBRAZÓW"), value);
+    if (s->awake_hours >= 48)
+        snprintf(value, sizeof value, tr(lang, "%lu d %lu h", "%lu d %lu h"),
+                 (unsigned long)(s->awake_hours / 24), (unsigned long)(s->awake_hours % 24));
+    else
+        snprintf(value, sizeof value, "%lu h", (unsigned long)s->awake_hours);
+    info_number(&c, 208, 82, 178, tr(lang, "AWAKE", "CZUWA"), value);
+    snprintf(value, sizeof value, "%lu", (unsigned long)s->fetches);
+    info_number(&c, 208, 124, 88, tr(lang, "DOWNLOADS", "POBRAŃ"), value);
+    snprintf(value, sizeof value, "%lu ms", (unsigned long)s->render_ms);
+    info_number(&c, 298, 124, 88, tr(lang, "DRAWN IN", "RYSOWANIE"), value);
+    /* A week of battery, then where this thing lives and where it comes from. */
+    info_week(&c, s, 14, 180, 286, 76, lang);
+    home_qr_paint(frame, "https://emini.ink/home", 312, 172, 74, 74, NULL);
+    rect(&c, 14, 261, 372, 1, BLACK);
+    if (s->first_start > 0 && time_valid(now)) {
+        long long days = (now - s->first_start) / 86400;
+        snprintf(line, sizeof line, tr(lang, "With you for %lld days", "Z Tobą od %lld dni"), days);
+    } else
+        snprintf(line, sizeof line, "emini Home");
+    txt(&c, 14, 265, 232, 17, 0, line);
+    stamp(a, sizeof a, now, lang, cfg->clock24, cfg->timezone);
+    txt(&c, 250, 265, 136, 17, 0, a);
+    snprintf(line, sizeof line, "%s · %s · emini.ink/home", HOME_VERSION_TEXT,
+             s->address[0] ? s->address : "home.local");
+    txt(&c, 14, 281, 372, 17, 0, line);
+}
 void home_render_setup(const char *ssid, const char *password, const char *code,
-                       const char *address, bool pl, uint8_t frame[HOME_FRAME_BYTES])
+                       const char *address, int lang, uint8_t frame[HOME_FRAME_BYTES])
 {
     if (!frame)
         return;
     memset(frame, 0x55, HOME_FRAME_BYTES);
-    canvas_t c = {frame, 1, 2, pl, RASTER_NOISE, RASTER_NOISE};
+    canvas_t c = {frame, 1, 2, lang, RASTER_NOISE, RASTER_NOISE};
     char wifi_payload[256], password_line[96];
     bool bounded_inputs = ssid && password && code && address && bounded(ssid, 33) <= 32 &&
                           bounded(password, 64) <= 63 && bounded(code, 7) == 6 &&
                           bounded(address, 128) < 128;
     if (bounded_inputs) {
-        snprintf(password_line, sizeof(password_line), "%s: %s", tr(pl, "Password", "Hasło"),
+        snprintf(password_line, sizeof(password_line), "%s: %s", tr(lang, "Password", "Hasło"),
                  password);
         bool fit = width(0, ssid, 33) <= 372 &&
                    width(0, password_line, sizeof(password_line)) <= 372 &&
@@ -2111,14 +2448,14 @@ void home_render_setup(const char *ssid, const char *password, const char *code,
             home_qr_paint(frame, wifi_payload, 14, 48, 172, 136, NULL) &&
             home_qr_paint(frame, address, 214, 48, 172, 136, NULL)) {
             /* 26 px box: the 22 px font descends 25 rows below the box top. */
-            txt(&c, 14, 3, 372, 26, 2, tr(pl, "Connect your phone.", "Połącz telefon."));
-            txt(&c, 14, 29, 180, 17, 0, tr(pl, "1  JOIN WI-FI", "1  POŁĄCZ WI-FI"));
-            txt(&c, 214, 29, 172, 17, 0, tr(pl, "2  OPEN HOME", "2  OTWÓRZ HOME"));
+            txt(&c, 14, 3, 372, 26, 2, tr(lang, "Connect your phone.", "Połącz telefon."));
+            txt(&c, 14, 29, 180, 17, 0, tr(lang, "1  JOIN WI-FI", "1  POŁĄCZ WI-FI"));
+            txt(&c, 214, 29, 172, 17, 0, tr(lang, "2  OPEN HOME", "2  OTWÓRZ HOME"));
             // These values remain legible as a complete manual fallback.
             text(&c, 14, 184, 372, 17, 0, BLACK, ssid, 33);
             txt(&c, 14, 201, 372, 18, 0, password_line);
             text(&c, 14, 220, 372, 24, 1, BLACK, address, 128);
-            txt(&c, 14, 253, 176, 21, 1, tr(pl, "3  Pairing code", "3  Kod parowania"));
+            txt(&c, 14, 253, 176, 21, 1, tr(lang, "3  Pairing code", "3  Kod parowania"));
             text(&c, 206, 246, 180, 37, 3, BLACK, code, 7);
             rect(&c, 14, 278, 372, 1, BLACK);
             txt(&c, 14, 282, 372, 17, 0, "emini.ink/home");
@@ -2134,28 +2471,28 @@ void home_render_setup(const char *ssid, const char *password, const char *code,
     memset(frame, 0x55, HOME_FRAME_BYTES);
     memset(wifi_payload, 0, sizeof(wifi_payload));
     memset(password_line, 0, sizeof(password_line));
-    txt(&c, 14, 7, 372, 26, 2, tr(pl, "Home, meet your phone.", "Home, poznaj swój telefon."));
+    txt(&c, 14, 7, 372, 26, 2, tr(lang, "Home, meet your phone.", "Home, poznaj swój telefon."));
     rect(&c, 14, 37, 372, 1, BLACK);
     txt(&c, 14, 42, 372, 18, 0,
-        tr(pl, "1  JOIN THIS WI-FI NETWORK", "1  POŁĄCZ TELEFON Z TĄ SIECIĄ WI-FI"));
+        tr(lang, "1  JOIN THIS WI-FI NETWORK", "1  POŁĄCZ TELEFON Z TĄ SIECIĄ WI-FI"));
     text(&c, 14, 61, 372, 44, 1, BLACK, ssid ? ssid : "", 64);
-    txt(&c, 14, 104, 372, 17, 0, tr(pl, "NETWORK PASSWORD", "HASŁO SIECI"));
+    txt(&c, 14, 104, 372, 17, 0, tr(lang, "NETWORK PASSWORD", "HASŁO SIECI"));
     text(&c, 14, 122, 372, 60, 1, BLACK, password ? password : "", 128);
     txt(&c, 14, 185, 372, 18, 0,
-        tr(pl, "2  OPEN THIS ADDRESS IN YOUR BROWSER", "2  OTWÓRZ TEN ADRES W PRZEGLĄDARCE"));
+        tr(lang, "2  OPEN THIS ADDRESS IN YOUR BROWSER", "2  OTWÓRZ TEN ADRES W PRZEGLĄDARCE"));
     text(&c, 14, 204, 372, 26, 2, BLACK, address ? address : "", 128);
-    txt(&c, 14, 237, 160, 20, 1, tr(pl, "3  Pairing code", "3  Kod parowania"));
+    txt(&c, 14, 237, 160, 20, 1, tr(lang, "3  Pairing code", "3  Kod parowania"));
     text(&c, 202, 230, 184, 37, 3, BLACK, code ? code : "", 32);
     rect(&c, 14, 273, 372, 1, BLACK);
     txt(&c, 14, 279, 372, 18, 0, "emini.ink/home");
 }
-void home_render_status(const char *title, const char *body, bool pl,
+void home_render_status(const char *title, const char *body, int lang,
                         uint8_t frame[HOME_FRAME_BYTES])
 {
     if (!frame)
         return;
     memset(frame, 0x55, HOME_FRAME_BYTES);
-    canvas_t c = {frame, 1, 2, pl, RASTER_NOISE, RASTER_NOISE};
+    canvas_t c = {frame, 1, 2, lang, RASTER_NOISE, RASTER_NOISE};
     status(&c, NULL, 0, title, body);
 }
 #ifdef HOME_TESTCARD
@@ -2291,7 +2628,7 @@ void home_render_testcard(int card, uint8_t frame[HOME_FRAME_BYTES])
     if (!frame)
         return;
     memset(frame, 0x55, HOME_FRAME_BYTES);
-    canvas_t c = {frame, 1, 2, false, RASTER_NOISE, RASTER_NOISE};
+    canvas_t c = {frame, 1, 2, LANG_EN, RASTER_NOISE, RASTER_NOISE};
     if (card == 0)
         card_ramps(&c);
     else if (card == 1)

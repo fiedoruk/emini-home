@@ -174,7 +174,8 @@ Tap **Pause for 60 min** to hold them for an hour.
   tone on the large fields: **Grain** (blue noise, the default), **Halftone
   dots**, or the classic **Grid** of earlier versions. Profiles (**Desk**, **At a glance**, **Showcase**) give
   you a starting point that you can adjust.
-- **Preferences**: display language, time zone and units.
+- **Preferences**: display language (English, Polski, 中文), time zone and units.
+  The language chosen here is the one the device draws; the panel keeps its own.
 - **Your device**: connection details and help. **Disconnect this phone**
   removes this browser's access.
 
@@ -196,10 +197,19 @@ name before you share it; the setup screen cannot be downloaded.
 ## Good to know
 
 - On the device, **Up** and **Down** switch between screens. A short press on
-  **OK / BOOT** switches the display language between English and Polish, or
-  does the job you choose in **Settings → Preferences**: check for updates,
-  hold the current screen (press again to resume) or open the setup window.
-  Holding OK / BOOT for 2 seconds always opens the setup window.
+  **OK / BOOT** shows the **emini card** for two minutes: the battery with an
+  estimate of how long the charge lasts, a few counters and a week of battery.
+  Press again to send it away. In **Settings → Preferences** the button can do
+  another job instead: check for updates, hold the current screen (press again
+  to resume) or open the setup window. Holding OK / BOOT for 2 seconds always
+  opens the setup window.
+- The side buttons do more when you hold them. **Up** held for two seconds
+  holds the picture where it is, and holding it again lets the automatic
+  changes run. **Down** held for two seconds and then let go asks every source
+  for fresh data, and the screen is drawn again when the answer arrives, even
+  if nothing changed, so you can see that the press did something. **Down**
+  held for five seconds steps to the next display language: English, Polish,
+  Chinese and back; the same choice sits in **Preferences**.
   On a screen set to **In turn**, Down and Up first step through its three
   compositions and then move to the next screen.
 - The panel talks to the device over HTTP on your local network. Use it on a

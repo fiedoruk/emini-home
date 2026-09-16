@@ -17,14 +17,21 @@ typedef struct {
     home_secrets_t secrets;
     home_battery_t battery;
     bool online, time_valid, setup, frame_valid, dirty, wifi_pending, maintenance, source_active;
+    /* A press on the device is answered on the device: the next picture goes to the panel even
+     * when it comes out identical, so a deliberate refresh is never silent. */
+    bool force_show;
     int phase; /* 0ready,1preparing,2refreshing,3error */
     int displayed_screen, pending_screen;
     uint32_t generation, refresh_ms, render_ms;
     uint64_t request_id, manual_id;
     bool pending_manual;
-    int64_t manual_until, last_switch, pair_until;
+    int64_t manual_until, last_switch, pair_until, info_until;
+    home_counters_t counters;
     uint8_t refresh_requested;
     unsigned api_active;
+    /* The last gesture the device recognised, so a press can be checked without a cable. */
+    int key_last, key_last_ms;
+    const char *key_last_what;
     char address[32], hostname[40], ssid[33], pair_code[7];
     uint8_t *frame;
 } home_runtime_t;
@@ -32,6 +39,7 @@ extern home_runtime_t home_runtime;
 void home_lock(void);
 void home_unlock(void);
 void home_begin_pairing(void);
+void home_stats_snapshot(home_stats_t *out, int64_t now);
 esp_err_t home_network_start(void);
 void home_network_apply(void);
 esp_err_t home_network_credentials(const char *ssid, const char *password);

@@ -238,11 +238,12 @@
       name: "Name of your Home",
       language: "Display language",
       okAction: "Short press of OK / BOOT",
-      okLanguage: "Switch the display language",
+      okInfo: "Show the emini card (battery and numbers)",
       okRefresh: "Check for updates now",
       okHold: "Hold the current screen (press again to resume)",
       okSetup: "Open the setup window (Wi-Fi and pairing)",
-      okHelp: "Holding OK / BOOT for 2 seconds always opens the setup window.",
+      okHelp:
+        "Holding OK / BOOT for 2 seconds always opens the setup window. Up held for 2 seconds holds the picture, Down held for 2 seconds asks for fresh data, and Down held for 5 seconds switches the display language.",
       units: "Temperature",
       timezone: "Time zone",
       clock: "24-hour clock",
@@ -515,12 +516,12 @@
       name: "Nazwa Twojego Home",
       language: "Język ekranu",
       okAction: "Krótkie naciśnięcie OK / BOOT",
-      okLanguage: "Przełącz język ekranu",
+      okInfo: "Pokaż kartę emini (bateria i liczby)",
       okRefresh: "Sprawdź aktualizacje",
       okHold: "Zatrzymaj bieżący ekran (drugie naciśnięcie wznawia)",
       okSetup: "Otwórz okno konfiguracji (Wi-Fi i parowanie)",
       okHelp:
-        "Przytrzymanie OK / BOOT przez 2 sekundy zawsze otwiera okno konfiguracji.",
+        "Przytrzymanie OK / BOOT przez 2 sekundy zawsze otwiera okno konfiguracji. Góra przez 2 sekundy zatrzymuje obraz, Dół przez 2 sekundy prosi o świeże dane, a Dół przez 5 sekund przełącza język ekranu.",
       units: "Temperatura",
       timezone: "Strefa czasu",
       clock: "Zegar 24-godzinny",
@@ -1118,6 +1119,26 @@
       )
       .join("")}</div><p class="hint">${t("profileHelp")}</p></div></section>`;
   }
+  /* A device that has never been told where it is keeps every hour in UTC. The phone knows its
+   * own zone, so the first pairing lends it, and the town search overwrites it later anyway. */
+  async function adoptPhoneZone() {
+    try {
+      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (
+        !S.config ||
+        S.config.timezone !== "UTC" ||
+        !zone ||
+        zone === "UTC" ||
+        !C.zones.includes(zone)
+      )
+        return;
+      const next = { ...S.config, timezone: zone };
+      await request("/api/config", { method: "PUT", body: next });
+      await load();
+    } catch (err) {
+      /* the zone is a convenience: a failure here must not stop the pairing */
+    }
+  }
   function preferencesSettings() {
     return `<section class="settings-detail">${backButton("settings-back")}<div class="page-title"><span class="title-icon">${icon("globe")}</span><div><h1>${say("Preferences", "Preferencje")}</h1><p>${say("A familiar language. The right time.", "Znajomy język. Właściwa godzina.")}</p></div></div><div class="form-section fields">${field("name", "name", "text", 'maxlength="48" autocomplete="off"')}${select(
       "locale",
@@ -1125,9 +1146,10 @@
       [
         ["en", "English"],
         ["pl", "Polski"],
+        ["zh", "中文"],
       ],
     )}${select("ok_action", "okAction", [
-      ["language", t("okLanguage")],
+      ["info", t("okInfo")],
       ["refresh", t("okRefresh")],
       ["hold", t("okHold")],
       ["setup", t("okSetup")],
@@ -2836,6 +2858,7 @@
         write("home.token", S.token);
         f.reset();
         await load();
+        await adoptPhoneZone();
         await poll();
       } catch (err) {
         const p = $("#pair-error");

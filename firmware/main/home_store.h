@@ -11,4 +11,6 @@ esp_err_t home_store_init(home_config_t *, home_data_t *, home_secrets_t *);
 esp_err_t home_store_config(const home_config_t *);
 esp_err_t home_store_data(const home_data_t *, const home_config_t *);
 esp_err_t home_store_secrets(const home_secrets_t *);
+esp_err_t home_store_stats(const home_counters_t *);
+esp_err_t home_store_stats_load(home_counters_t *);
 #endif

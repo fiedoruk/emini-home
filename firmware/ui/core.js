@@ -549,7 +549,7 @@
       "ok_action",
       (recipe && !has("ok_action")) ||
         c.ok_action === undefined ||
-        ["language", "refresh", "hold", "setup"].includes(c.ok_action),
+        ["info", "refresh", "hold", "setup"].includes(c.ok_action),
     );
     check(
       "air_main",
@@ -574,7 +574,7 @@
       "weekdays",
       Number.isInteger(c.weekdays) && c.weekdays >= 1 && c.weekdays <= 127,
     );
-    check("locale", ["en", "pl"].includes(c.locale));
+    check("locale", ["en", "pl", "zh"].includes(c.locale));
     check("units", ["C", "F"].includes(c.units));
     check("texture", [1, 2, 4].includes(c.texture));
     check("intensity", [0, 1, 2].includes(c.intensity));

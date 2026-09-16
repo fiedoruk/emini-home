@@ -469,6 +469,17 @@ void home_sources_task(void *unused)
         time_t now = time(NULL);
         home_lock();
         bool online = home_runtime.online;
+        /* Someone asked for fresh data (side button, the round one, or the panel): make those
+         * sources due now. Until 0.5.1 the request only set a flag that nothing ever read, so
+         * "Refresh" waited for the ordinary schedule and looked broken. The fetch functions keep
+         * their own rule against hammering a provider in next_fetch, so the request has to clear
+         * it rather than walk around it. */
+        if (home_runtime.refresh_requested & 1U)
+            home_runtime.data.weather.meta.next_fetch = 0;
+        if (home_runtime.refresh_requested & 2U)
+            home_runtime.data.feed.meta.next_fetch = 0;
+        if (home_runtime.refresh_requested & 4U)
+            home_runtime.data.air.meta.next_fetch = 0;
         *c = home_runtime.config;
         *d = home_runtime.data;
         int32_t offset;
@@ -525,6 +536,7 @@ void home_sources_task(void *unused)
             if (home_runtime.config.latitude == c->latitude &&
                 home_runtime.config.longitude == c->longitude) {
                 home_runtime.data.weather = d->weather;
+                home_runtime.counters.fetches++;
                 home_runtime.refresh_requested &= ~1U;
                 home_runtime.dirty = true;
                 home_runtime.request_id++;
@@ -537,6 +549,7 @@ void home_sources_task(void *unused)
             home_lock();
             if (!strcmp(home_runtime.config.feed_url, c->feed_url)) {
                 home_runtime.data.feed = d->feed;
+                home_runtime.counters.fetches++;
                 home_runtime.refresh_requested &= ~2U;
                 home_runtime.dirty = true;
                 home_runtime.request_id++;
@@ -553,6 +566,7 @@ void home_sources_task(void *unused)
                 home_runtime.config.longitude == c->longitude &&
                 home_runtime.config.enabled[HOME_AIR]) {
                 home_runtime.data.air = d->air;
+                home_runtime.counters.fetches++;
                 home_runtime.refresh_requested &= ~4U;
                 home_runtime.dirty = true;
                 home_runtime.request_id++;

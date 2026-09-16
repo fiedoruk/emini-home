@@ -42,8 +42,8 @@ build needs nothing but ESP-IDF:
 - `home_font.c` holds bitmaps of Atkinson Hyperlegible Next 2.001 at 10, 22,
   30, 44, 48 and 64 pixels and of the TRMNL12 Bold and TRMNL16 Bold pixel
   fonts (v1.002) at 12 and 16 pixels, 333 glyphs per size, followed by
-  Simplified Chinese glyphs from Noto Sans CJK SC Medium (GB 2312 level 1,
-  3 866 codepoints with punctuation and full-width forms) at 12, 16, 22 and
+  Simplified Chinese glyphs from Noto Sans CJK SC Medium (GB 2312 level 1 and 2,
+  6 874 codepoints with punctuation and full-width forms) at 12, 16, 22 and
   30 pixels.
 - `home_noise.h` holds the 64 × 64 blue-noise threshold mask of the renderer, written
   by `tools/build_noise.py` (deterministic seed; the header records the SHA-256 of the mask).

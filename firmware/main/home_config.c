@@ -86,9 +86,12 @@ void home_config_defaults(home_config_t *c)
     c->texture = 1;
     c->intensity = 2;
     c->clock24 = true;
-    c->mode = HOME_DAY;
+    /* Out of the box: one screen, the weather, so the first hour on the wall is predictable.
+     * The day rhythm and the rotation are a choice in the panel (QC first start, 16.09). */
+    c->mode = HOME_FIXED;
+    c->fixed_screen = HOME_WEATHER;
     c->interval_min = 30;
-    c->pause_min = 60;
+    c->pause_min = 15;
     c->cycle_min = 30;
     c->ok_action = 0;
     c->air_main = 0;
@@ -172,8 +175,10 @@ static bool boolean(const cJSON *j, const char *k, bool *out)
     *out = cJSON_IsTrue(v);
     return true;
 }
-/* Short OK/BOOT press: what it does (index = home_config_t.ok_action). */
-static const char *const ok_actions[] = {"language", "refresh", "hold", "setup"};
+/* Short OK/BOOT press: what it does (index = home_config_t.ok_action). Since 0.6 the default is
+ * the "emini" card; the language moved to the phone panel alone, and a record that still asks for
+ * the old language action is read as the card (D-HOME-CC-27). */
+static const char *const ok_actions[] = {"info", "refresh", "hold", "setup"};
 /* Air: which number is drawn large (index = home_config_t.air_main). */
 static const char *const air_mains[] = {"eu", "us", "pm25"};
 /* Brush (D-HOME-CC-23/25): tone structure of the large fields (index = home_config_t.brush).
@@ -273,7 +278,7 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
                     "Feed must use public HTTPS");
     }
     REQUIRE(strval(j, "locale", c.locale, sizeof(c.locale), false) &&
-                (!strcmp(c.locale, "en") || !strcmp(c.locale, "pl")),
+                (!strcmp(c.locale, "en") || !strcmp(c.locale, "pl") || !strcmp(c.locale, "zh")),
             "Unsupported language");
     REQUIRE(strval(j, "units", c.units, sizeof(c.units), false) &&
                 (!strcmp(c.units, "C") || !strcmp(c.units, "F")),
@@ -343,6 +348,11 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
     }
     if (get(j, "ok_action")) { /* optional since 0.4.4 */
         n = choice(j, "ok_action", ok_actions, 4);
+        if (n < 0) {
+            static const char *const legacy[] = {"language"};
+            if (choice(j, "ok_action", legacy, 1) >= 0)
+                n = 0; /* the language button of 0.4.4-0.5.0: now the card */
+        }
         REQUIRE(n >= 0, "Invalid OK button action");
         c.ok_action = (uint8_t)n;
     }
