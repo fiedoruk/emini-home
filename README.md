@@ -5,9 +5,9 @@
 `0.5.0` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
-  <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.4.0. The Weather screen in the Print composition shows 15° in Czaplinek, 14–17 °C over 24 hours, cloud cover, and rain from 21:00 to 23:00.">
+  <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.5.1. The Weather screen in the Print composition shows 15° in Czaplinek, 12–17 °C over 24 hours, cloud cover, a dithered band of the next hours, and the line Dry until 06:00 · Wind 3.4 m/s.">
 </p>
-<p align="center"><sub>Photo of a NOTE4C running 0.4.0 · Weather in the Print composition</sub></p>
+<p align="center"><sub>Photo of a NOTE4C running 0.5.1 · Weather in the Print composition</sub></p>
 
 emini Home puts the weather forecast, one headline, a note in your own words,
 the sky above you and the air you breathe on the NOTE4C's 400 × 300 display, using its black, white, red and
