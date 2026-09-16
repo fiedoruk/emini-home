@@ -140,6 +140,19 @@ static bool screen_has_data(int s)
 static void long_action(int key)
 {
     if (key == 4) {
+        /* The same hold opens the window and closes it. Short presses deliberately leave the
+         * card alone while the window is open, because the code and the password are readable
+         * nowhere else - but without this the only way out was to wait five minutes (16.09). */
+        int64_t at = esp_timer_get_time();
+        home_lock();
+        bool open = home_runtime.setup && home_runtime.pair_until > at;
+        if (open)
+            home_runtime.pair_until = at; /* the loop takes the card down and draws a screen */
+        home_unlock();
+        if (open) {
+            ESP_LOGI(TAG, "Physical hold key=4: setup window closed");
+            return;
+        }
         home_begin_pairing();
         ESP_LOGI(TAG, "Physical hold key=4: setup window");
         return;
@@ -238,6 +251,8 @@ static void action(int key)
             pause = false;
         }
     } else {
+        /* A side button means "show me the pictures again", so it also sends the card away. */
+        home_runtime.info_until = 0;
         /* On an "In turn" screen, Down and Up first walk through its three compositions. */
         int shown = home_runtime.displayed_screen;
         int step = key == 2 ? 1 : -1;
@@ -487,6 +502,7 @@ void app_main(void)
     key_state.changed = esp_timer_get_time();
     int64_t last_status = 0, last_minute = -1;
     bool drew_setup = false; /* the picture on the display is the setup card */
+    bool drew_info = false;  /* the picture on the display is the "emini" card */
     uint8_t last_hash[32] = {0};
     bool have_hash = false;
     while (true) {
@@ -590,7 +606,12 @@ void app_main(void)
                                     mono - cycle_at[screen] >= (int64_t)c->cycle_min * 60000000));
         if (cycle_due && screen == current && !quiet)
             dirty = true;
-        if (phase != 3 && dirty &&
+        /* While the card is up it stays up. It carries counters that change with every picture,
+         * so anything that sets dirty underneath it - the automatic change of screens, a source
+         * coming back - would redraw the card, differently every time, for the whole two minutes
+         * of its window (16.09, Tomek: "why does it refresh all the time"). The flag waits and
+         * the screen is drawn once, when the card goes away. */
+        if (phase != 3 && dirty && !(info_open && drew_info) &&
             (!quiet || setup || leaving_setup || manual_request || mono < manual ||
              !home_runtime.frame_valid)) {
             char ssid[33], pass[17], code[7], address[48];
@@ -671,6 +692,7 @@ void app_main(void)
                 home_runtime.generation++;
                 home_runtime.counters.pictures++;
                 drew_setup = setup;
+                drew_info = info_open;
                 home_runtime.phase = 0;
                 if (home_runtime.request_id == request_id)
                     home_runtime.pending_screen = -1;

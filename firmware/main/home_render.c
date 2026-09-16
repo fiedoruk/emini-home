@@ -15,7 +15,7 @@
 
 enum { BLACK = 0, PAPER = 1, YELLOW = 2, RED = 3, W = 400, H = 300 };
 #ifndef HOME_VERSION_TEXT
-#define HOME_VERSION_TEXT "0.5.1"
+#define HOME_VERSION_TEXT "0.5.2"
 #endif
 /* Brushes (D-HOME-CC-23, narrowed by D-HOME-CC-25): the user picks the tone structure in the
  * panel. The line-based screens (engraving, cross-hatch) were dropped after the device test:
