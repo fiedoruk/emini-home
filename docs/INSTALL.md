@@ -1,6 +1,6 @@
 # Install emini Home
 
-> A web installer at [esp32ai.me/install](https://esp32ai.me/install) can write the same
+> A web installer at [esp32ai.me/install](https://esp32ai.me/install?fw=emini-home) can write the same
 > files from Chrome or Edge, with the file or a link to it. This guide is the careful
 > route: two full backups and a preflight check before anything is written.
 
