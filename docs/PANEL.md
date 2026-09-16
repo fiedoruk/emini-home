@@ -201,8 +201,11 @@ name before you share it; the setup screen cannot be downloaded.
   estimate of how long the charge lasts, a few counters and a week of battery.
   Press again to send it away. In **Settings → Preferences** the button can do
   another job instead: check for updates, hold the current screen (press again
-  to resume) or open the setup window. Holding OK / BOOT for 2 seconds always
-  opens the setup window.
+  to resume) or open the setup window. While the card is up the picture
+  underneath stays where it is, and a side button sends the card away.
+  Holding OK / BOOT for 2 seconds opens the setup window, and holding it again
+  closes it; short presses leave that card alone, so a stray press cannot take
+  the pairing code off the screen while you are typing it.
 - The side buttons do more when you hold them. **Up** held for two seconds
   holds the picture where it is, and holding it again lets the automatic
   changes run. **Down** held for two seconds and then let go asks every source
