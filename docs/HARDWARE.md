@@ -8,7 +8,8 @@ four-colour display.
 | Display | 400 × 300 e-paper, black, white, yellow and red pigments |
 | Chip | ESP32-S3 with native USB (tested unit: revision 0.2) |
 | Memory | 16 MiB flash, 8 MiB octal PSRAM |
-| Controls | Up, Down and OK / BOOT buttons |
+| Controls | Up (GPIO39) and Down (GPIO18) on the right edge, OK / BOOT (GPIO0) on the face |
+| Notes | Down shares its line with the board's power key, so its level is less clean than the other two; a status LED sits on GPIO3 and a reset pinhole on RST/EN |
 | Connectivity | 2.4 GHz Wi-Fi |
 
 The monochrome NOTE4 uses a different display and needs its own firmware.
