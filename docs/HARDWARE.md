@@ -75,9 +75,13 @@ Charger signals must stay stable for a second before the panel shows them.
 While not charging, the panel estimates a percentage from the voltage with the
 curve used by the reference firmware, clamped to 0–100 %:
 `(-V*V + 9016*V - 19189000) / 10000`, where `V` is in millivolts. It is a
-rough estimate, not a fuel gauge, and it is hidden while charging. Battery
-life has not been measured yet, and this release keeps Wi-Fi on without deep
-sleep.
+rough estimate, not a fuel gauge, and it is hidden while charging.
+
+Battery life was read from the device's own seven-day history on the tested
+unit: with three screens taking turns every twenty minutes, a full charge fell
+by about fifty points a day, so it lasted roughly a day and a half. Drawing is
+not what costs: the panel was busy 4.6 % of the day. This release keeps Wi-Fi
+connected and never sleeps, and that is where the current goes.
 
 ## Flash layout
 

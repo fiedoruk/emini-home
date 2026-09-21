@@ -16,13 +16,13 @@ address from any of these requests.
 | --- | --- | --- | --- |
 | [MET Norway](https://api.met.no/) weather API | Home | when the last forecast expires, as MET Norway sets it | the saved forecast location, cut to 4 decimal places, plus your home IP address |
 | [Open-Meteo Air Quality API](https://open-meteo.com/en/terms) | Home | only while the Air screen is switched on, about once an hour | the saved location, cut to 4 decimal places, plus your home IP address |
-| Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | when the last copy of the feed expires | a request for that feed, plus your home IP address |
+| Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | when the last copy of the feed expires, and news feeds usually declare a very short lifetime: in practice every few minutes (see the note below) | a request for that feed, plus your home IP address |
 | [FreeIPAPI](https://freeipapi.com/) | Home | when the panel asks Home for an approximate location | your home IP address, which it uses to estimate a location |
 | [Open-Meteo Geocoding API](https://open-meteo.com/en/terms) | your phone's browser, from the panel | only when you search for a town | the text you typed, your phone's IP address and ordinary browser request data |
 | `pool.ntp.org` time servers | Home | at start and then hourly | time requests, plus your home IP address |
 
 Requests from Home identify the software with the User-Agent
-`emini-home/0.4 (+https://github.com/fiedoruk/emini-home)`: its name and
+`emini-home/0.5 (+https://github.com/fiedoruk/emini-home)`: its name and
 version, followed by the project page as a contact address, which weather
 services ask clients to include. The same text is sent from every device and
 does not identify you.
@@ -47,6 +47,14 @@ There is no GPS. You can set the place for the weather in two ways.
    appears to be. This can point to your internet provider's city rather than
    yours. Home does not replace a town you picked in the search with this
    estimate.
+
+**How often the feed is fetched.** Home asks a provider again once the copy it holds
+expires, and it trusts what the provider says. Weather declares about half an hour and air
+quality about an hour, so those are quiet. News feeds are different: the default BBC World
+feed declares a lifetime of about two seconds, which on the tested unit meant a request every
+few minutes — roughly fifteen an hour, each one carrying your home IP address to the feed's
+server. Most of the answers are "not modified". If that is more than you want, point Home at
+a different feed or switch the news screen off in the panel.
 
 Whichever way you choose, the saved location becomes the forecast location
 that Home sends to MET Norway. While the Air screen is switched on, Home sends

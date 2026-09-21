@@ -141,8 +141,10 @@ Where 0.5.0 stands:
 - **Location** comes from a town you search for in the panel, or from an
   estimate based on your internet address, which can land on your provider's
   city.
-- **Battery life has not been measured.** The panel shows voltage and a rough
-  percentage. Wi-Fi stays on and there is no deep sleep yet.
+- **Battery life is short.** On the tested unit, with three screens taking turns
+  every twenty minutes, a full charge lasted roughly a day and a half. Wi-Fi stays
+  on and there is no sleep of any kind yet, which is where nearly all of that goes.
+  The panel shows voltage and a rough percentage.
 - **Going back to the factory firmware** uses the standard esptool procedure
   and has not yet been tried on a real unit.
 - **Updates** are installed over USB. There is no over-the-air update mechanism.
