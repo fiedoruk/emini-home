@@ -24,6 +24,30 @@ server sits in between.
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
 > four-colour NOTE4C is supported.
 
+## NM-EPD-420-4C variant
+
+The source tree also builds firmware for the RockBase **NM-EPD-420-4C**. This
+is a separate compile-time target; the default `note4c` target and its release
+artifacts remain unchanged. The 4C target uses the GDEY0420F51/HX8717 panel,
+GPIO `2/1/46/4/5/6` for the display, USER/BOOT on GPIO `45/0`, and battery ADC
+GPIO `3` enabled by GPIO `43`.
+
+![NM-EPD-420-4C panel photo](docs/images/nm-epd-420-4c.jpg)
+
+Build either target with ESP-IDF 5.5.4 at `C:\Espressif\frameworks\5.5.4`:
+
+```powershell
+$env:IDF_COMPONENT_MANAGER = 0
+idf.py -B build-note4c -DHOME_BOARD=note4c build
+idf.py -B build-nm-epd-420-4c -DHOME_BOARD=nm-epd-420-4c build
+```
+
+The images are written to `firmware/build-note4c/emini_home_g3.bin` and
+`firmware/build-nm-epd-420-4c/emini_home_g3.bin`. The NOTE4C release image,
+preflight hashes and installation procedure below do not validate an
+NM-EPD-420-4C; back up that board's complete flash and inspect its partition
+table before flashing a custom image.
+
 ## One forecast, three compositions
 
 <p align="center">

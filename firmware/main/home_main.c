@@ -3,6 +3,7 @@
 #include "home_places.h"
 #include "home_discovery.h"
 #include "home_panel.h"
+#include "home_board.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
 #include "esp_random.h"
@@ -95,19 +96,9 @@ void home_begin_pairing(void)
     home_unlock();
     ESP_LOGI(TAG, "Physical pairing window opened for five minutes");
 }
-static void output(gpio_num_t pin, int value)
-{
-    ESP_ERROR_CHECK(gpio_hold_dis(pin));
-    ESP_ERROR_CHECK(gpio_set_level(pin, value));
-    gpio_config_t c = {.pin_bit_mask = 1ULL << pin, .mode = GPIO_MODE_OUTPUT};
-    ESP_ERROR_CHECK(gpio_config(&c));
-    ESP_ERROR_CHECK(gpio_set_level(pin, value));
-    ESP_ERROR_CHECK(gpio_hold_en(pin));
-}
 static int keys(void)
 {
-    return (!gpio_get_level(GPIO_NUM_39) ? 1 : 0) | (!gpio_get_level(GPIO_NUM_18) ? 2 : 0) |
-           (!gpio_get_level(GPIO_NUM_0) ? 4 : 0);
+    return home_board_keys();
 }
 /* "In turn" compositions: appearances per screen and when the current one started.
  * Only the main task (loop and action) touches these. */
@@ -395,14 +386,7 @@ static void buttons_tick(void)
 }
 void app_main(void)
 {
-    output(GPIO_NUM_17, 1);
-    output(GPIO_NUM_21, 0);
-    output(GPIO_NUM_42, 0);
-    output(GPIO_NUM_46, 0);
-    gpio_config_t buttons = {.pin_bit_mask = (1ULL << 39) | (1ULL << 18) | 1ULL,
-                             .mode = GPIO_MODE_INPUT,
-                             .pull_up_en = GPIO_PULLUP_ENABLE};
-    ESP_ERROR_CHECK(gpio_config(&buttons));
+    home_board_init();
     home_runtime.lock = xSemaphoreCreateMutex();
     render_lock = xSemaphoreCreateMutex();
     /* Explicit checks, not assert(): these must also run with assertions disabled. */
