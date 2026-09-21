@@ -101,3 +101,16 @@ The factory layout on the tested unit, and what emini Home adds:
 
 Home keeps its settings, Wi-Fi details, paired browsers and last good data in
 `home_nvs`. See [installation](INSTALL.md) for the exact write commands.
+
+## NM-EPD-420-4C variant
+
+The source tree also supports RockBase NM-EPD-420-4C as a separate build
+target. It uses a GDEY0420F51/HX8717 four-colour panel, with display GPIO
+`2/1/46/4/5/6` (clock/data/chip-select/data-command/reset/busy), USER/BOOT on
+GPIO `45/0`, and a GPIO `3` battery divider enabled by GPIO `43`.
+
+Select it with `-DHOME_BOARD=nm-epd-420-4c`. Its HX8717 transport and battery
+reader are separate source files, so the NOTE4C implementation above is left
+unchanged. Back up the board's flash and inspect its partition table before
+flashing: the NOTE4C release images, preflight checks, and installation guide
+do not validate this board.

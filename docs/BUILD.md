@@ -97,3 +97,26 @@ apply. The preflight check accepts your two files as well, as long as the
 table is identical and the project name is unchanged, and it prints the
 version from your image. Do not use `idf.py flash`: it also writes a new
 bootloader, which is exactly what the installation guide avoids.
+
+## NM-EPD-420-4C variant
+
+ESP-IDF 5.5.4 at `C:\Espressif\frameworks\5.5.4` has been validated for this
+source-build variant. From the `firmware` project directory, use separate
+build directories because `HOME_BOARD` is cached by CMake:
+
+```powershell
+$env:IDF_COMPONENT_MANAGER = 0
+idf.py -B build-note4c -DHOME_BOARD=note4c build
+idf.py -B build-nm-epd-420-4c -DHOME_BOARD=nm-epd-420-4c build
+```
+
+The 4C image is `build-nm-epd-420-4c/emini_home_g3.bin`. To flash that build
+on COM42, select its build directory explicitly:
+
+```powershell
+idf.py -B build-nm-epd-420-4c -p COM42 flash
+```
+
+Do not use the NOTE4C release image, preflight hashes, or installation steps
+for NM-EPD-420-4C. Back up its complete flash and inspect its partition table
+before flashing a custom image.
