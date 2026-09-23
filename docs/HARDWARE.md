@@ -1,6 +1,6 @@
 # Hardware
 
-emini Home 0.5.0 supports one device: the **ZECTRIX NOTE4C Devkit** with the
+emini Home 0.6.0 supports one device: the **ZECTRIX NOTE4C Devkit** with the
 four-colour display.
 
 | Part | Details |
@@ -77,11 +77,33 @@ curve used by the reference firmware, clamped to 0–100 %:
 `(-V*V + 9016*V - 19189000) / 10000`, where `V` is in millivolts. It is a
 rough estimate, not a fuel gauge, and it is hidden while charging.
 
-Battery life was read from the device's own seven-day history on the tested
-unit: with three screens taking turns every twenty minutes, a full charge fell
-by about fifty points a day, so it lasted roughly a day and a half. Drawing is
-not what costs: the panel was busy 4.6 % of the day. This release keeps Wi-Fi
-connected and never sleeps, and that is where the current goes.
+Battery life on the tested unit, with three screens taking turns every twenty
+minutes. Drawing is not what costs: the panel is busy about 4.6 % of the day.
+The current goes into keeping the radio and the chip awake.
+
+| Release | Behaviour | Radio on | A full charge lasts |
+| --- | --- | --- | --- |
+| 0.5.2 and earlier | Wi-Fi connected, no sleep at all | all the time | about a day and a half, measured |
+| 0.6.0, Open | chip sleeps between events, Wi-Fi connected and waking for every third beacon | all the time | about a week, estimated |
+| 0.6.0, Breath (default) | Wi-Fi off between downloads; a press of OK opens the panel for five minutes | 15 to 55 seconds an hour overnight, measured | two to four weeks, estimated |
+
+The 0.5.2 figure comes from two full discharges read from the device's own
+history. The 0.6.0 figures are estimates. The radio time in Breath is measured, from
+the device's hourly log over a 13-hour run on battery, but a full discharge on 0.6.0
+has not been done yet. The device keeps that log for a week (see
+[privacy](PRIVACY.md)), so a week on battery is enough to replace the estimates with
+a measurement.
+
+In Open most of the cost is the radio. In its default mode the Wi-Fi driver woke the
+chip about seven times a second and held it awake about a third of the time,
+whatever the rest of the firmware did. Set to wake for every third beacon, it wakes
+about three times a second and leaves the chip free to sleep about 80 % of the time.
+The price is a little latency for the frames the access point holds back: on the
+tested unit the panel still answers in well under a second and the `.local` name
+still resolves. Breath removes that cost between downloads by turning the radio off.
+
+On a cable Home holds power management locks and never sleeps, so flashing and
+the USB maintenance protocol behave exactly as they did before.
 
 ## Flash layout
 

@@ -16,13 +16,13 @@ address from any of these requests.
 | --- | --- | --- | --- |
 | [MET Norway](https://api.met.no/) weather API | Home | when the last forecast expires, as MET Norway sets it | the saved forecast location, cut to 4 decimal places, plus your home IP address |
 | [Open-Meteo Air Quality API](https://open-meteo.com/en/terms) | Home | only while the Air screen is switched on, about once an hour | the saved location, cut to 4 decimal places, plus your home IP address |
-| Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | when the last copy of the feed expires, and news feeds usually declare a very short lifetime: in practice every few minutes (see the note below) | a request for that feed, plus your home IP address |
+| Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | when the last copy of the feed expires, and never sooner than 25 minutes after the previous request | a request for that feed, plus your home IP address |
 | [FreeIPAPI](https://freeipapi.com/) | Home | when the panel asks Home for an approximate location | your home IP address, which it uses to estimate a location |
 | [Open-Meteo Geocoding API](https://open-meteo.com/en/terms) | your phone's browser, from the panel | only when you search for a town | the text you typed, your phone's IP address and ordinary browser request data |
 | `pool.ntp.org` time servers | Home | at start and then hourly | time requests, plus your home IP address |
 
 Requests from Home identify the software with the User-Agent
-`emini-home/0.5 (+https://github.com/fiedoruk/emini-home)`: its name and
+`emini-home/0.6 (+https://github.com/fiedoruk/emini-home)`: its name and
 version, followed by the project page as a contact address, which weather
 services ask clients to include. The same text is sent from every device and
 does not identify you.
@@ -48,13 +48,19 @@ There is no GPS. You can set the place for the weather in two ways.
    yours. Home does not replace a town you picked in the search with this
    estimate.
 
-**How often the feed is fetched.** Home asks a provider again once the copy it holds
-expires, and it trusts what the provider says. Weather declares about half an hour and air
-quality about an hour, so those are quiet. News feeds are different: the default BBC World
-feed declares a lifetime of about two seconds, which on the tested unit meant a request every
-few minutes — roughly fifteen an hour, each one carrying your home IP address to the feed's
-server. Most of the answers are "not modified". If that is more than you want, point Home at
-a different feed or switch the news screen off in the panel.
+**How often Home asks.** Home asks a provider again once the copy it holds expires, and it
+trusts what the provider says — but never sooner than **25 minutes** after the previous
+request, whatever the provider declares. That is half an hour, less the few minutes by which
+Home may bring a request forward so that two share one trip of the radio. After a failed
+request it tries again in about fifteen minutes. That floor matters: weather declares about half an hour and air quality
+about an hour, but the default BBC World feed declares a lifetime of about **two seconds**.
+Until 0.6.0 that meant a request every few minutes, roughly fifteen an hour, each one carrying
+your home IP address to the feed's server. It is now about two an hour. A screen that
+repaints every twenty minutes cannot show anything fresher anyway. If that is still
+more than you want, point Home at a different feed or switch the news screen off in the panel.
+
+In **Breath**, the default power mode since 0.6.0, the radio is off between these requests.
+That changes when they are sent, not what is sent or to whom.
 
 Whichever way you choose, the saved location becomes the forecast location
 that Home sends to MET Norway. While the Air screen is switched on, Home sends
@@ -84,6 +90,19 @@ router you own: keep it in your home, and
 away. Installing Home and starting over leave the factory firmware's own
 settings area untouched; if the factory firmware was ever connected to Wi-Fi,
 that area can still hold its Wi-Fi details.
+
+Home also keeps a few numbers about **itself**, shown on the emini card and readable by a
+paired browser:
+
+- **Counters** since the first start: pictures drawn, hours awake, downloads, and one battery
+  reading per day for the last seven days.
+- **A power log**: one line per hour for the last week, each with the battery voltage, whether
+  it was charging, how many pictures and downloads there were, how many seconds the chip was
+  not allowed to sleep, and how many seconds the display spent drawing and the radio was on.
+  Taken together this is a record of **when the device was busy and when it sat on a
+  charger** — a rough trace of the rhythm of the room it stands in. It never leaves the device
+  on its own: `GET /api/power` needs a paired browser, and nothing is sent anywhere. It is stored unencrypted, like everything else here, and
+  [erasing Home's settings](INSTALL.md#starting-over) erases it too.
 
 The flash backup you make during installation contains the same kind of data.
 Keep it private.

@@ -27,7 +27,9 @@
 #define LINE_MAX_BYTES 8192U /* GitHub Atom sends a ~3.6KiB CSP header. */
 #define REQUEST_US INT64_C(25000000)
 /* Public source repository is a contact pointer, never a user/device identifier. */
-#define HOME_UA "emini-home/0.5 (+https://github.com/fiedoruk/emini-home)"
+#define HOME_UA "emini-home/0.6 (+https://github.com/fiedoruk/emini-home)"
+/* Shortest gap between two questions to the same provider, whatever it says about freshness. */
+#define HOME_MIN_POLL_S 1800
 typedef struct {
     char host[254], path[768], ip[INET_ADDRSTRLEN];
 } endpoint_t;
@@ -917,7 +919,14 @@ static void metadata(home_source_meta_t *m, const headers_t *h, int64_t now, boo
     m->no_store = p.no_store || p.invalid || inherited_no_store;
     m->expires_at = expiry(h, now, fallback, p);
     m->state = m->expires_at > now ? HOME_READY : HOME_STALE;
-    int64_t poll = m->expires_at > now + 120 ? m->expires_at : now + 120;
+    /* Never ask a provider more often than every half hour, whatever it declares. Measured on
+     * the tested unit: the default news feed declares two seconds of freshness, so a short
+     * floor meant a request every few minutes - about fifteen an hour, each one sending the
+     * reader's home IP address to the provider. Half an hour also keeps the radio quiet on
+     * battery. Weather (about half an hour) sits at this floor and air quality (an hour) above
+     * it. A refresh asked for by hand clears next_fetch outright, so the floor never stands
+     * between a press and fresh data. */
+    int64_t poll = m->expires_at > now + HOME_MIN_POLL_S ? m->expires_at : now + HOME_MIN_POLL_S;
     m->next_fetch = poll + (esp_random() % 180);
     m->error[0] = 0;
     if (newdata) {

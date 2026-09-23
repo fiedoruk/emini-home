@@ -6,6 +6,16 @@ CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
 CONFIG_FREERTOS_HZ=100
+# Power management: automatic light sleep between events. The locks in home_power.c keep it
+# away from the cable, from charging and from the maintenance protocol.
+# PM_SLP_DISABLE_GPIO comes out =y anyway, because ESP_SLEEP_GPIO_RESET_WORKAROUND (default y on
+# the S3) does a Kconfig `select` on it, and a select silently beats the line below. The line is
+# kept as a record of intent; the pins are actually released by gpio_sleep_sel_dis() in
+# home_power_init() for the power latch (17), the panel rail (6) and the three buttons.
+CONFIG_PM_ENABLE=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+CONFIG_USJ_NO_AUTO_LS_ON_CONNECTION=y
+# CONFIG_PM_SLP_DISABLE_GPIO is not set
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 CONFIG_SPIRAM=y
@@ -33,3 +43,10 @@ CONFIG_HTTPD_MAX_URI_LEN=768
 # CONFIG_MDNS_PREDEF_NETIF_ETH is not set
 CONFIG_MDNS_MAX_INTERFACES=2
 CONFIG_MDNS_MAX_SERVICES=1
+# Wi-Fi power save: after a beacon the station stays active at least this long, and the timer
+# restarts on every frame. The IDF default is 50 ms. On a home network with broadcast traffic 15 ms
+# only shortened the average active window from 56 to 48 ms, but it costs the panel nothing.
+CONFIG_ESP_WIFI_SLP_DEFAULT_MIN_ACTIVE_TIME=15
+# The mDNS timer only sends shared records (service browsing); the .local name is answered at
+# once. At the default 100 ms it woke the chip ten times a second.
+CONFIG_MDNS_TIMER_PERIOD_MS=500

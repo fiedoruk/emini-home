@@ -36,10 +36,10 @@ hours and a pause hold only automatic changes.
 the forecast or the feed, every composition shows the same placeholder. The
 preview updates when the information arrives.
 
-**Check for updates on a Weather or News page did nothing.** Home does not
-download before a source's cache time runs out. The next download comes a few
-minutes after the time shown under **Check again after**, or about 15 minutes
-after a failed download. Firmware updates are a separate thing: you install
+**Check for updates on a Weather or News page did nothing.** Check for updates
+asks the source again at once. If the provider has nothing newer, the picture
+stays as it was. After a failed download Home tries again by itself in about
+15 minutes. Firmware updates are a separate thing: you install
 them over USB with the [installation guide](docs/INSTALL.md).
 
 **Home forgot its settings after an update.** Home found saved settings it
@@ -48,7 +48,9 @@ the Wi-Fi and pairing details are affected, instead of stopping, and it erases
 nothing. Set it up again in the panel, and please open an issue with the
 version you updated from.
 
-**I cannot open the panel.** Wait until the display has finished drawing, then
+**I cannot open the panel.** In Breath, the default power mode, Wi-Fi sleeps
+between downloads: press the round OK button once, wait a few seconds, then reload
+the page; the panel answers for five minutes. If it still does not open, wait until the display has finished drawing, then
 hold OK / BOOT for 2 seconds to open the setup window for 5 minutes. Join the
 **emini.ink** Wi-Fi shown on the display and open `http://192.168.4.1`.
 Joining the network does not open the page by itself.

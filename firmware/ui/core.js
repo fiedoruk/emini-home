@@ -37,7 +37,7 @@
   // Settings and recipes written before 0.5.0 list only the first three (LEGACY).
   const screens = ["weather", "feed", "note", "sky", "air"];
   const LEGACY = 3;
-  // "cycle" = Print, Rhythm and Atlas take turns (D-HOME-CC-18). Previews never send it.
+  // "cycle" = Print, Rhythm and Atlas take turns. Previews never send it.
   const styles = ["print", "rhythm", "atlas", "cycle"];
   const geocoder = "https://geocoding-api.open-meteo.com/v1/search";
   const zones = [
@@ -550,6 +550,10 @@
       (recipe && !has("ok_action")) ||
         c.ok_action === undefined ||
         ["info", "refresh", "hold", "setup"].includes(c.ok_action),
+    );
+    check(
+      "power_mode",
+      c.power_mode === undefined || ["breath", "open"].includes(c.power_mode),
     );
     check(
       "air_main",

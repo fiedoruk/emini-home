@@ -32,6 +32,9 @@ esp_err_t home_panel_show(const uint8_t *frame, size_t len);
  * task that owns the panel is the same one that watches the buttons: without this hook every
  * press made during a picture is thrown away. The hook must not touch the panel. */
 void home_panel_set_idle_hook(void (*hook)(void));
+/* How many times the last picture waited for BUSY. With refresh_ms it tells whether a longer refresh
+ * comes from the panel (more samples) or from a late wake-up (the same number, each longer). */
+uint32_t home_panel_busy_polls(void);
 
 /* Idempotent OFF confirmation after a successful show. Also used internally
  * at the known refresh-complete boundary. This is NOT emergency recovery:

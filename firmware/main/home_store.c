@@ -20,9 +20,10 @@ typedef struct {
 } cache_t;
 static const char *TAG = "home_store";
 static nvs_handle_t handle;
-static uint32_t sequence[4];
-static const char *keys[4][2] = {
-    {"config0", "config1"}, {"data0", "data1"}, {"secret0", "secret1"}, {"stats0", "stats1"}};
+static uint32_t sequence[5];
+static const char *keys[5][2] = {
+    {"config0", "config1"}, {"data0", "data1"}, {"secret0", "secret1"}, {"stats0", "stats1"},
+    {"power0", "power1"}};
 /* NVS only owns home_nvs. Never erase/format another partition or recover
  * corruption by erasing this one: a record that cannot be used is skipped and
  * the unit starts from defaults, leaving the old bytes until the next save.
@@ -228,4 +229,25 @@ esp_err_t home_store_stats_load(home_counters_t *n)
         free(p);
     }
     return p && e == ESP_OK ? ESP_OK : e;
+}
+
+/* The power log. Like the counters: a record of another size (another firmware) is skipped,
+ * so the log starts empty instead of reading fields at the wrong offset. */
+esp_err_t home_store_power(const home_power_log_t *l)
+{
+    return put(4, l, sizeof(*l));
+}
+esp_err_t home_store_power_load(home_power_log_t *l)
+{
+    size_t size;
+    esp_err_t e;
+    void *p = get_record(4, &size, &e);
+    if (p) {
+        if (size == sizeof(*l))
+            memcpy(l, p, size);
+        else
+            e = ESP_ERR_INVALID_SIZE;
+        free(p);
+    }
+    return p ? e : (e == ESP_OK ? ESP_ERR_NOT_FOUND : e);
 }

@@ -120,6 +120,17 @@ static esp_err_t set_rail(int level)
     return ESP_OK;
 }
 
+/* How many times we waited for BUSY during the last picture. Milliseconds alone cannot tell why
+ * one refresh takes 24.7 s and another 32.6 s: it may be longer because the panel really worked
+ * longer (cold paper), or because OUR polling fell behind, since from 0.6.0 the chip may sleep
+ * between samples. Time divided by the number of samples separates the two cases: a cold panel
+ * gives more samples, a late wake-up gives the same number of samples, each of them just
+ * longer. */
+static uint32_t busy_polls, busy_polls_last;
+uint32_t home_panel_busy_polls(void)
+{
+    return busy_polls_last;
+}
 static void (*idle_hook)(void);
 void home_panel_set_idle_hook(void (*hook)(void))
 {
@@ -128,6 +139,7 @@ void home_panel_set_idle_hook(void (*hook)(void))
 static esp_err_t wait_idle(const char *stage)
 {
     int64_t start = esp_timer_get_time();
+    busy_polls = 0;
     int64_t last_log = start;
     while (gpio_get_level(PANEL_BUSY) == 0) {
         int64_t now = esp_timer_get_time();
@@ -140,6 +152,7 @@ static esp_err_t wait_idle(const char *stage)
             last_log = now;
         }
         delay_ms(50);
+        busy_polls++;
         if (idle_hook)
             idle_hook();
     }
@@ -308,8 +321,9 @@ esp_err_t home_panel_show(const uint8_t *frame, size_t len)
     delay_ms(10);
     PANEL_TRY(wait_idle("refresh"), "refresh BUSY completion");
     panel_state = PANEL_REFRESHED;
+    busy_polls_last = busy_polls;
     PANEL_TRY(home_panel_power_off(), "normal power-down");
-    ESP_LOGI(TAG, "Refresh cycle completed; rail off; elapsed_ms=%ld",
-             (long)((esp_timer_get_time() - start) / 1000));
+    ESP_LOGI(TAG, "Refresh cycle completed; rail off; elapsed_ms=%ld busy_polls=%lu",
+             (long)((esp_timer_get_time() - start) / 1000), (unsigned long)busy_polls_last);
     return ESP_OK;
 }

@@ -52,6 +52,7 @@
       connecting: "Connecting to Home…",
       connected: "Connected directly to your Home",
       offline: "Home is out of reach. Check your Wi-Fi.",
+      asleep: "Home is resting. Press OK on the device to open this panel for five minutes.",
       retry: "Retry",
       pairEyebrow: "YOUR PHONE + YOUR HOME",
       pairTitle: "Make yourself at Home.",
@@ -243,7 +244,7 @@
       okHold: "Hold the current screen (press again to resume)",
       okSetup: "Open the setup window (Wi-Fi and pairing)",
       okHelp:
-        "Holding OK / BOOT for 2 seconds always opens the setup window. Up held for 2 seconds holds the picture, Down held for 2 seconds asks for fresh data, and Down held for 5 seconds switches the display language.",
+        "In Breath mode every short press of OK also opens this panel for five minutes. Holding OK / BOOT for 2 seconds always opens the setup window. Up held for 2 seconds holds the picture, Down held for 2 seconds asks for fresh data, and Down held for 5 seconds switches the display language.",
       units: "Temperature",
       timezone: "Time zone",
       clock: "24-hour clock",
@@ -327,6 +328,7 @@
       connecting: "Łączenie z Home…",
       connected: "Połączenie bezpośrednio z Twoim Home",
       offline: "Home poza zasięgiem. Sprawdź Wi-Fi.",
+      asleep: "Home odpoczywa. Naciśnij OK na urządzeniu, a ten panel otworzy się na pięć minut.",
       retry: "Ponów",
       pairEyebrow: "TWÓJ TELEFON + TWÓJ HOME",
       pairTitle: "Rozgość się w Home.",
@@ -521,7 +523,7 @@
       okHold: "Zatrzymaj bieżący ekran (drugie naciśnięcie wznawia)",
       okSetup: "Otwórz okno konfiguracji (Wi-Fi i parowanie)",
       okHelp:
-        "Przytrzymanie OK / BOOT przez 2 sekundy zawsze otwiera okno konfiguracji. Góra przez 2 sekundy zatrzymuje obraz, Dół przez 2 sekundy prosi o świeże dane, a Dół przez 5 sekund przełącza język ekranu.",
+        "W trybie Oddech każde krótkie naciśnięcie OK otwiera też ten panel na pięć minut. Przytrzymanie OK / BOOT przez 2 sekundy zawsze otwiera okno konfiguracji. Góra przez 2 sekundy zatrzymuje obraz, Dół przez 2 sekundy prosi o świeże dane, a Dół przez 5 sekund przełącza język ekranu.",
       units: "Temperatura",
       timezone: "Strefa czasu",
       clock: "Zegar 24-godzinny",
@@ -755,10 +757,53 @@
     if (volts) volts.textContent = b.volts;
     if (percent) percent.textContent = b.percent;
     if (state) state.textContent = b.state;
+    const awake = awakeNote();
+    document.querySelectorAll("[data-awake-note]").forEach((n) => {
+      n.textContent = awake;
+      n.hidden = !awake;
+    });
   }
   function batterySettings() {
     const b = batteryWords();
-    return `<section class="settings-detail">${backButton("settings-back")}<div class="page-title"><span class="title-icon">${icon("battery")}</span><div><h1>${say("Battery", "Bateria")}</h1><p>${say("A measured voltage, an approximate charge level.", "Zmierzone napięcie i przybliżony poziom naładowania.")}</p></div></div><div class="device-summary"><dl class="device-facts"><dt>${say("Voltage", "Napięcie")}</dt><dd id="battery-voltage">${esc(b.volts)}</dd><dt>${say("Estimated charge", "Szacowane naładowanie")}</dt><dd id="battery-percent">${esc(b.percent)}</dd><dt>${say("Charging state", "Stan ładowania")}</dt><dd id="battery-state">${esc(b.state)}</dd></dl></div><p class="hint">${say("Charge is estimated from voltage when Home is not charging. Runtime has not been measured yet.", "Poziom jest szacowany z napięcia, gdy Home nie ładuje. Czas pracy nie został jeszcze zmierzony.")}</p></section>`;
+    return `<section class="settings-detail">${backButton("settings-back")}<div class="page-title"><span class="title-icon">${icon("battery")}</span><div><h1>${say("Battery", "Bateria")}</h1><p>${say("A measured voltage, an approximate charge level.", "Zmierzone napięcie i przybliżony poziom naładowania.")}</p></div></div><div class="device-summary"><dl class="device-facts"><dt>${say("Voltage", "Napięcie")}</dt><dd id="battery-voltage">${esc(b.volts)}</dd><dt>${say("Estimated charge", "Szacowane naładowanie")}</dt><dd id="battery-percent">${esc(b.percent)}</dd><dt>${say("Charging state", "Stan ładowania")}</dt><dd id="battery-state">${esc(b.state)}</dd></dl></div><p class="hint">${say("Charge is estimated from voltage when Home is not charging. Runtime has not been measured yet.", "Poziom jest szacowany z napięcia, gdy Home nie ładuje. Czas pracy nie został jeszcze zmierzony.")}</p><section class="form-section"><h2>${say("Power", "Zasilanie")}</h2><div class="option-set mode-options power-options">${powerModes()
+      .map(
+        ([m, pic, name]) =>
+          `<button data-action="power-mode" data-mode="${m}" aria-pressed="${S.draft.power_mode === m}">${icon(pic)}<span>${name}</span></button>`,
+      )
+      .join("")}</div><p class="hint">${powerModes().find(([m]) => m === S.draft.power_mode)?.[3] || ""}</p><p class="hint" data-awake-note hidden></p></section></section>`;
+  }
+  /* The two power modes: each name with one plain sentence under it. */
+  function powerModes() {
+    return [
+      [
+        "breath",
+        "moon",
+        say("Breath", "Oddech"),
+        say(
+          "Wi-Fi sleeps between downloads and the battery lasts much longer. Press OK on the device and this panel opens for five minutes.",
+          "Wi-Fi śpi między pobraniami, a bateria starcza na znacznie dłużej. Naciśnij OK na urządzeniu, a ten panel otworzy się na pięć minut.",
+        ),
+      ],
+      [
+        "open",
+        "wifi",
+        say("Open", "Otwarte"),
+        say(
+          "This panel answers at any time. The battery runs down several times faster.",
+          "Ten panel odpowiada w każdej chwili. Bateria wyczerpuje się kilka razy szybciej.",
+        ),
+      ],
+    ];
+  }
+  /* Breath: how long the panel stays open, counted down on every status poll. */
+  function awakeNote() {
+    const p = S.status?.power;
+    if (!p || p.mode !== "breath" || !(p.awake_seconds > 0)) return "";
+    const min = Math.ceil(p.awake_seconds / 60);
+    return say(
+      `Panel open for ${min} more min · press OK on the device to open it again`,
+      `Panel otwarty jeszcze ${min} min · naciśnij OK na urządzeniu, by otworzyć go ponownie`,
+    );
   }
   async function previewAppearance(button) {
     if (S.previewBusy) return;
@@ -997,7 +1042,7 @@
       .join("")}</nav>`;
   }
   function overview() {
-    return `<div class="home-overview"><section class="now-section"><div class="now-heading"><div><p class="eyebrow">${say("ON YOUR HOME", "NA TWOIM HOME")}</p><h1>${esc(S.config.name)}</h1></div><span class="state-chip" id="display-state">${statusName()}</span></div><figure class="now-art"><div class="device-frame" id="confirmed-holder">${S.frame ? `<canvas id="confirmed-frame" width="400" height="300" role="img" aria-label="${esc(t("confirmed"))}"></canvas>` : `<div class="frame-placeholder">${icon("screens")}<strong>${t("unconfirmed")}</strong><small id="frame-message">${t("frameUnknown")}</small></div>`}</div><figcaption><span id="frame-label">${t("confirmed")}</span><button class="icon-label-button" data-action="native-preview" data-kind="confirmed" ${!S.frame ? "disabled" : ""}>${icon("screens")}<span>1:1</span></button></figcaption></figure><p class="hint" id="battery-summary"></p><p class="refresh-note" id="refresh-note">${t("frameHint")}</p><button class="rhythm-summary" data-action="open-rhythm">${icon(S.status?.pause_remaining > 0 ? "pause" : "clock")}<span><strong>${t("rhythm")}</strong><small id="mode-summary">${esc(modeSummary())}</small></span>${icon("arrow")}</button>${!S.status?.online ? `<button class="network-prompt" data-action="wifi-settings">${icon("wifi")}<span>${say("Connect Wi-Fi for live information", "Połącz Wi-Fi, aby mieć aktualne informacje")}</span>${icon("arrow")}</button>` : ""}</section><section class="screen-library"><div class="section-label"><div><p class="eyebrow">${say("MAKE IT YOURS", "PO TWOJEMU")}</p><h2>${t("yourScreens")}</h2></div><span class="small muted">${S.config.enabled.filter(Boolean).length}/${C.screens.length} ${say("active", "aktywne")}</span></div><div class="poster-list">${S.draft.order.map((key) => `<article class="poster-card ${S.status?.displayed_screen === key ? "on-device" : ""}" data-poster-screen="${key}"><button class="poster-open" data-action="select" data-screen="${key}"><span class="poster-thumb"><canvas data-screen="${key}" width="400" height="300" aria-hidden="true"></canvas></span><span class="poster-copy"><span class="poster-name">${icon(key)}${t(key)}</span><small data-source-label>${!S.draft.enabled[C.screens.indexOf(key)] ? t("off") : esc(sourceLabel(key))}</small><span class="on-device-label" data-on-device ${S.status?.displayed_screen === key ? "" : "hidden"}>${icon("check")}${t("active")}</span></span>${icon("arrow")}</button><div class="poster-actions"><button data-action="select" data-screen="${key}">${icon("edit")}${t("edit")}</button><button data-action="show-card" data-screen="${key}" ${S.dirty || !S.config.enabled[C.screens.indexOf(key)] ? "disabled" : ""}>${icon("play")}${t("show")}</button></div></article>`).join("")}</div></section></div>`;
+    return `<div class="home-overview"><section class="now-section"><div class="now-heading"><div><p class="eyebrow">${say("ON YOUR HOME", "NA TWOIM HOME")}</p><h1>${esc(S.config.name)}</h1></div><span class="state-chip" id="display-state">${statusName()}</span></div><figure class="now-art"><div class="device-frame" id="confirmed-holder">${S.frame ? `<canvas id="confirmed-frame" width="400" height="300" role="img" aria-label="${esc(t("confirmed"))}"></canvas>` : `<div class="frame-placeholder">${icon("screens")}<strong>${t("unconfirmed")}</strong><small id="frame-message">${t("frameUnknown")}</small></div>`}</div><figcaption><span id="frame-label">${t("confirmed")}</span><button class="icon-label-button" data-action="native-preview" data-kind="confirmed" ${!S.frame ? "disabled" : ""}>${icon("screens")}<span>1:1</span></button></figcaption></figure><p class="hint" id="battery-summary"></p><p class="hint" data-awake-note hidden></p><p class="refresh-note" id="refresh-note">${t("frameHint")}</p><button class="rhythm-summary" data-action="open-rhythm">${icon(S.status?.pause_remaining > 0 ? "pause" : "clock")}<span><strong>${t("rhythm")}</strong><small id="mode-summary">${esc(modeSummary())}</small></span>${icon("arrow")}</button>${!S.status?.online ? `<button class="network-prompt" data-action="wifi-settings">${icon("wifi")}<span>${say("Connect Wi-Fi for live information", "Połącz Wi-Fi, aby mieć aktualne informacje")}</span>${icon("arrow")}</button>` : ""}</section><section class="screen-library"><div class="section-label"><div><p class="eyebrow">${say("MAKE IT YOURS", "PO TWOJEMU")}</p><h2>${t("yourScreens")}</h2></div><span class="small muted">${S.config.enabled.filter(Boolean).length}/${C.screens.length} ${say("active", "aktywne")}</span></div><div class="poster-list">${S.draft.order.map((key) => `<article class="poster-card ${S.status?.displayed_screen === key ? "on-device" : ""}" data-poster-screen="${key}"><button class="poster-open" data-action="select" data-screen="${key}"><span class="poster-thumb"><canvas data-screen="${key}" width="400" height="300" aria-hidden="true"></canvas></span><span class="poster-copy"><span class="poster-name">${icon(key)}${t(key)}</span><small data-source-label>${!S.draft.enabled[C.screens.indexOf(key)] ? t("off") : esc(sourceLabel(key))}</small><span class="on-device-label" data-on-device ${S.status?.displayed_screen === key ? "" : "hidden"}>${icon("check")}${t("active")}</span></span>${icon("arrow")}</button><div class="poster-actions"><button data-action="select" data-screen="${key}">${icon("edit")}${t("edit")}</button><button data-action="show-card" data-screen="${key}" ${S.dirty || !S.config.enabled[C.screens.indexOf(key)] ? "disabled" : ""}>${icon("play")}${t("show")}</button></div></article>`).join("")}</div></section></div>`;
   }
   function editor() {
     const s = S.selected,
@@ -1494,7 +1539,9 @@
     e.className = "connection " + (S.online ? "live" : "offline");
     $("#connection-text").textContent = S.online
       ? t("connected")
-      : t("offline");
+      : S.status?.power?.mode === "breath"
+        ? t("asleep")
+        : t("offline");
     $("#reconnect").hidden = S.online;
     if (S.config) updateStatus();
   }
@@ -1524,7 +1571,7 @@
   }
   async function request(
     path,
-    { method = "GET", body, binary = false, publicCall = false } = {},
+    { method = "GET", body, binary = false, publicCall = false, auto = false } = {},
   ) {
     const controller = new AbortController(),
       timer = setTimeout(() => controller.abort(), 15000),
@@ -1533,6 +1580,8 @@
       const headers = {};
       if (!publicCall && S.token) headers.Authorization = "Bearer " + S.token;
       if (body !== undefined) headers["Content-Type"] = "application/json";
+      // Sent by the panel on its own, not by a person: in Breath it must not keep Home awake.
+      if (auto) headers["X-Home-Auto"] = "1";
       const r = await fetch(path, {
         method,
         headers,
@@ -1709,7 +1758,7 @@
       }
     }, 550);
   }
-  async function previews() {
+  async function previews(auto = false) {
     // A saved "cycle" previews as Print, exactly like the draft preview (C.previewConfig).
     const body = C.screens.some((s) => S.config?.styles?.[s] === "cycle")
       ? C.previewConfig(S.config)
@@ -1719,7 +1768,9 @@
         try {
           const r = await request(
             "/api/preview?screen=" + s,
-            body ? { method: "POST", body, binary: true } : { binary: true },
+            body
+              ? { method: "POST", body, binary: true, auto }
+              : { binary: true, auto },
           );
           C.decodeFrame(r.buffer);
           S.frames[s] = r.buffer;
@@ -1772,7 +1823,7 @@
       approximate = !changed && S.ipPlace?.key === C.placeKey(S.config);
     return `<section class="town-location"><div class="selected-place"><span class="eyebrow">${changed ? say("New location · not saved yet", "Nowa lokalizacja · jeszcze niezapisana") : say("Location saved on Home", "Lokalizacja zapisana na Home")}</span><strong>${place.location_ready === false ? say("Set your location", "Ustaw lokalizację") : esc(place.location)}</strong><small>${place.location_ready === false ? say("One step to your local weather", "Jeden krok do lokalnej pogody") : esc(place.timezone)}</small>${approximate ? `<p class="hint${S.ipPlace.mismatch ? " error-text" : ""}">${S.ipPlace.mismatch ? say("Approximate location may be wrong. Search for your town.", "Lokalizacja przybliżona może być błędna — wyszukaj swoją miejscowość.") : say("Approximate location from Home’s internet connection. If the town is wrong, search for yours.", "Przybliżona lokalizacja z połączenia internetowego Home. Jeśli miejscowość się nie zgadza, wyszukaj swoją.")}</p>` : ""}</div>${townSearch()}<div class="area-option"><button type="button" data-action="use-location" ${S.dirty || S.mutation || S.areaBusy ? "disabled" : ""}>${icon("globe")}${say("Use my location", "Użyj mojej lokalizacji")}</button><p class="hint">${S.dirty ? say("Save or discard your other changes first.", "Najpierw zapisz lub odrzuć pozostałe zmiany.") : say("Home finds an approximate area from its Internet connection, then saves it and shows the weather.", "Home ustali przybliżoną okolicę z połączenia internetowego, zapisze ją i pokaże pogodę.")}</p><p class="hint">${say("FreeIPAPI sees Home’s public IP. Weather coordinates go to MET Norway. It is an approximation and can point to your internet provider’s town.", "FreeIPAPI widzi publiczne IP Home. Współrzędne pogody trafiają do MET Norway. To przybliżenie, które może wskazać miasto dostawcy internetu.")}</p></div></section>`;
   }
-  /* Town search (layer 2, D-HOME-CC-14): the phone asks Open-Meteo directly; nothing is stored. */
+  /* Town search (layer 2): the phone asks Open-Meteo directly; nothing is stored. */
   function townSearch() {
     const q = S.search,
       open = townListOpen();
@@ -2486,7 +2537,7 @@
         newSources !== oldSources
       ) {
         S.draftFrames = {};
-        await previews();
+        await previews(true);
         if (S.dirty) queueDraftPreview();
       }
     } catch (e) {
@@ -2757,6 +2808,9 @@
         window.scrollTo({ top: 0, behavior: "instant" });
       } else if (a === "mode") {
         S.draft.mode = b.dataset.mode;
+        render();
+      } else if (a === "power-mode") {
+        S.draft.power_mode = b.dataset.mode;
         render();
       } else if (a === "move") {
         const i = S.draft.order.indexOf(S.selected),

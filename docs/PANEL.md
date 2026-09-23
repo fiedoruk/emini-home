@@ -31,11 +31,13 @@ window by holding **OK / BOOT for 2 seconds**. It stays open for 5 minutes.
 
 **Where the panel lives afterwards.** The **emini.ink** network and
 `http://192.168.4.1` exist only while the setup window is open, for 5 minutes.
-Once Home is on your home Wi-Fi, the panel is always there at the device's own
+Once Home is on your home Wi-Fi, the panel lives at the device's own
 address, shown in **Settings → Your device** and on the **Continue on your home
 network** card: for example `http://192.168.1.23`, or `http://home-1a2b.local`
-on phones that resolve `.local` names. Bookmark it; you do not need the button
-for everyday use.
+on phones that resolve `.local` names. Bookmark it. In **Breath**, the default power
+mode, Wi-Fi sleeps between downloads: press the round OK button on the device once,
+wait a few seconds, and the panel answers for five minutes (see
+[Breath and Open](#breath-and-open)).
 
 <p align="center"><img src="images/epaper-setup.png" width="400" alt="Setup screen on the display"></p>
 
@@ -82,8 +84,8 @@ Tap a screen to open its page:
   every composition shows the same placeholder.
 - **Source & updates** (Weather and News): when the information was issued,
   downloaded and last checked, and the time after which Home checks again.
-  **Check for updates** asks for a new download, which Home makes only once
-  the source's cache time has run out.
+  **Check for updates** asks the source again at once; if it has nothing newer,
+  the picture stays as it is.
 - **What it says**: for Weather, the place (see below). For News, the feed
   address. For your note, the words.
 - **How it looks**: the **Composition** and a link to the texture, colour and
@@ -158,15 +160,17 @@ Rhythm tab.
 Automatic changes skip screens that have no information yet, such as Weather
 before you set its place.
 
-**Quiet hours** keep the last picture on the display overnight. This is not a
-sleep or battery setting. The **Take a pause** setting controls how long
+**Quiet hours** keep the last picture on the display overnight. It is not the same
+thing as the chip sleeping — since 0.6.0 Home sleeps between events whatever the hour —
+but a night without repaints does save a little. The **Take a pause** setting controls how long
 automatic changes wait after you press a physical button or tap **Show now**.
 Tap **Pause for 60 min** to hold them for an hour.
 
 ## 5. The Settings tab
 
 - **Wi-Fi connection**: change the network.
-- **Battery**: voltage, charging state and a rough percentage.
+- **Battery**: voltage, charging state and a rough percentage, and the power
+  mode: **Breath** or **Open** (see [Breath and Open](#breath-and-open)).
 - **Appearance**: **Pixel texture** (Fine, Medium or Large), **Colour use**
   (Black & white, Balanced, Expressive), **Brush** and **Larger text**, with a
   preview. Fine keeps 1-pixel patterns for black and paper; coloured patterns
@@ -194,14 +198,43 @@ You can also download a public sample picture, or choose to download the
 picture on your own display. Check that one for personal words or your place
 name before you share it; the setup screen cannot be downloaded.
 
+## Breath and Open
+
+Home has two power modes, chosen under **Settings → Battery → Power** and saved with
+**Save settings**.
+
+- **Breath** is the default since 0.6.0, and an update from an earlier version starts in
+  it. Wi-Fi is off between downloads, so the battery should last weeks rather than days
+  (an estimate). About twice an hour Home switches the radio on, fetches what is due and
+  lets it sleep again. While it sleeps the panel cannot reach the device: a panel you
+  already have open says **Home is resting**, and a new page does not load. A short press
+  on the round **OK / BOOT** button opens the panel for five minutes, a few seconds after
+  the press; the emini card that appears says so in its footer: **Panel open for 5
+  minutes**. Each thing you do in the panel starts the five minutes again, and the panel
+  counts the time down under the battery line. A short press of Up or Down changes the
+  picture without waking the radio; holding Down for two seconds asks for fresh data and
+  switches the radio on for it.
+- **Open** keeps Wi-Fi connected, as in earlier releases: the panel answers at any time,
+  and the battery runs down roughly two to four times faster, by our estimate.
+
+On a USB cable, while the setup window is open and until the first phone is paired, Home
+keeps Wi-Fi on in either mode.
+
 ## Good to know
 
 - On the device, **Up** and **Down** switch between screens. A short press on
-  **OK / BOOT** shows the **emini card** for two minutes: the battery with an
-  estimate of how long the charge lasts, a few counters and a week of battery.
-  Press again to send it away. In **Settings → Preferences** the button can do
+  **OK / BOOT** shows the **emini card** for two minutes, and in Breath it also opens
+  the panel for five. Since 0.6.0 the card has
+  **two faces**, and each press moves to the next one: first the battery with an
+  estimate of how long the charge lasts, the number of pictures drawn and a QR code
+  to the project; then the numbers — every counter, how often the loop wakes, how
+  much of the time the chip may sleep, and a week of battery. A third press sends
+  the card away. Two dots in the top right show which face you are on. Nothing
+  changes on its own: the card is drawn once per press, because every picture costs
+  the paper twenty-five seconds. In **Settings → Preferences** the button can do
   another job instead: check for updates, hold the current screen (press again
-  to resume) or open the setup window. While the card is up the picture
+  to resume) or open the setup window. In Breath every short press still opens the
+  panel, whatever its job. While the card is up the picture
   underneath stays where it is, and a side button sends the card away.
   Holding OK / BOOT for 2 seconds opens the setup window, and holding it again
   closes it; short presses leave that card alone, so a stray press cannot take

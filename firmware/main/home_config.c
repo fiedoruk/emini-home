@@ -96,6 +96,7 @@ void home_config_defaults(home_config_t *c)
     c->ok_action = 0;
     c->air_main = 0;
     c->brush = 0;
+    c->power_mode = HOME_POWER_BREATH;
     c->quiet_enabled = true;
     c->quiet_start = 1350;
     c->quiet_end = 420;
@@ -177,15 +178,18 @@ static bool boolean(const cJSON *j, const char *k, bool *out)
 }
 /* Short OK/BOOT press: what it does (index = home_config_t.ok_action). Since 0.6 the default is
  * the "emini" card; the language moved to the phone panel alone, and a record that still asks for
- * the old language action is read as the card (D-HOME-CC-27). */
+ * the old language action is read as the card. */
 static const char *const ok_actions[] = {"info", "refresh", "hold", "setup"};
 /* Air: which number is drawn large (index = home_config_t.air_main). */
 static const char *const air_mains[] = {"eu", "us", "pm25"};
-/* Brush (D-HOME-CC-23/25): tone structure of the large fields (index = home_config_t.brush).
+/* Brush: tone structure of the large fields (index = home_config_t.brush).
  * The line-based screens of the 0.5.0 pre-releases are still accepted and read as grain, so a
  * record written by one of those builds still loads. */
 static const char *const brushes[] = {"grain", "halftone", "grid"};
 static const char *const brushes_legacy[] = {"engraving", "crosshatch", "auto"};
+/* Power mode (index = home_power_mode_t). A record without it - every one written before 0.6.0 -
+ * reads as Breath, the default. */
+static const char *const power_modes[] = {"breath", "open"};
 static int choice(const cJSON *j, const char *k, const char *const *values, int count)
 {
     cJSON *v = get(j, k);
@@ -225,7 +229,8 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
         "location", "latitude", "longitude",    "note",         "location_ready", "feed_url",
         "enabled",  "order",    "styles",       "texture",      "intensity",      "large_text",
         "clock24",  "mode",     "fixed_screen", "interval_min", "pause_min",      "quiet",
-        "weekdays", "day",      "cycle_min",    "ok_action",    "air_main",       "brush"};
+        "weekdays", "day",      "cycle_min",    "ok_action",    "air_main",       "brush",
+        "power_mode"};
     static const char *const public_keys[] = {
         "schema",   "locale",       "units",        "enabled",    "order",
         "styles",   "texture",      "intensity",    "large_text", "clock24",
@@ -276,6 +281,11 @@ bool home_config_decode(const char *text, size_t len, home_config_t *out, const 
                         !strchr(c.feed_url, '@') && !strchr(c.feed_url, '#') &&
                         !strchr(c.feed_url, ' ') && !strchr(c.feed_url, '\\'),
                     "Feed must use public HTTPS");
+        if (get(j, "power_mode")) { /* optional since 0.6.0; not in a recipe: it is not a look */
+            n = choice(j, "power_mode", power_modes, 2);
+            REQUIRE(n >= 0, "Invalid power mode");
+            c.power_mode = (uint8_t)n;
+        }
     }
     REQUIRE(strval(j, "locale", c.locale, sizeof(c.locale), false) &&
                 (!strcmp(c.locale, "en") || !strcmp(c.locale, "pl") || !strcmp(c.locale, "zh")),
@@ -444,6 +454,8 @@ cJSON *home_config_json(const home_config_t *c, bool recipe)
         JSON_NEED(cJSON_AddBoolToObject(j, "location_ready", c->location_ready));
         JSON_NEED(cJSON_AddStringToObject(j, "note", c->note));
         JSON_NEED(cJSON_AddStringToObject(j, "feed_url", c->feed_url));
+        JSON_NEED(cJSON_AddStringToObject(j, "power_mode",
+                                          power_modes[c->power_mode < 2 ? c->power_mode : 0]));
     }
     JSON_NEED(cJSON_AddStringToObject(j, "locale", c->locale));
     JSON_NEED(cJSON_AddStringToObject(j, "units", c->units));

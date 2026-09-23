@@ -1,15 +1,21 @@
 /* Trusted, physically attached USB maintenance transport. No network route.
  * Explicit USB pair opens the same five-minute window as the physical button.
  * Credentials are accepted only in that physical pairing window.
- * Read directly from the default nonblocking USB VFS: no terminal echo. */
+ * Reads block on the USB-Serial/JTAG driver. Until 0.5.2 this task woke a hundred times a
+ * second to ask whether a byte had arrived - on a device whose maintenance protocol is used a
+ * few times a year - and that alone kept the chip from ever being idle long enough to sleep. */
 #include "home_runtime.h"
 #include "esp_timer.h"
+#include "esp_log.h"
+#include "driver/usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
 #include "freertos/task.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
+static bool driver_ready;
 static bool fields(cJSON *j, bool wifi)
 {
     if (!cJSON_IsObject(j))
@@ -136,7 +142,16 @@ static void task(void *unused)
     int64_t last = 0;
     while (true) {
         unsigned char ch;
-        int n = read(STDIN_FILENO, &ch, 1);
+        /* With the driver: blocks until a byte arrives or a second passes; the timeout is only
+         * there so the half-typed-line rule below still fires. Without it: the pre-0.6.0 path. */
+        int n;
+        if (driver_ready)
+            n = usb_serial_jtag_read_bytes(&ch, 1, pdMS_TO_TICKS(1000));
+        else {
+            n = (int)read(STDIN_FILENO, &ch, 1);
+            if (n != 1)
+                vTaskDelay(pdMS_TO_TICKS(10));
+        }
         if (n == 1) {
             last = esp_timer_get_time();
             if (ch == '\n') {
@@ -151,17 +166,27 @@ static void task(void *unused)
                 discard = true;
             else if (!discard)
                 line[used++] = ch;
-        } else {
-            if ((used || discard) && esp_timer_get_time() - last > INT64_C(5000000)) {
-                memset(line, 0, sizeof(line));
-                used = 0;
-                discard = true;
-            }
-            vTaskDelay(pdMS_TO_TICKS(10));
+        } else if ((used || discard) && esp_timer_get_time() - last > INT64_C(5000000)) {
+            memset(line, 0, sizeof(line));
+            used = 0;
+            discard = true;
         }
     }
 }
 esp_err_t home_usb_start(void)
 {
+    /* The blocking read needs the driver. If it cannot be installed we fall back to the
+     * non-blocking path this file used until 0.5.2 rather than refusing to start: app_main
+     * wraps this call in ESP_ERROR_CHECK, so returning an error here would halt the device
+     * at boot over a maintenance transport that is used a few times a year. A Home that
+     * answers on Wi-Fi with a polling USB task is far better than one that does not boot. */
+    usb_serial_jtag_driver_config_t usb = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    esp_err_t e = usb_serial_jtag_driver_install(&usb);
+    if (e == ESP_OK || e == ESP_ERR_INVALID_STATE) {
+        usb_serial_jtag_vfs_use_driver(); /* console through the same driver, so replies arrive */
+        driver_ready = true;
+    } else
+        ESP_LOGW("home_usb", "USB driver unavailable (%s); falling back to polling",
+                 esp_err_to_name(e));
     return xTaskCreate(task, "home_usb", 4096, NULL, 3, NULL) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }

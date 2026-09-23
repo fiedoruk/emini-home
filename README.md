@@ -2,7 +2,7 @@
 
 **A calm, four-colour poster of your day for the ZECTRIX NOTE4C e-paper devkit.**
 
-`0.5.0` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
+`0.6.0` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
   <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.5.1. The Weather screen in the Print composition shows 15° in Czaplinek, 12–17 °C over 24 hours, cloud cover, a dithered band of the next hours, and the line Dry until 06:00 · Wind 3.4 m/s.">
@@ -15,10 +15,10 @@ yellow pigments. You set it up in your phone's browser, without an app or an
 account. After that the device does the rest on its own, and no emini.ink
 server sits in between.
 
-[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.5.0](https://github.com/fiedoruk/emini-home/releases/tag/v0.5.0) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
+[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.6.0](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.0) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
 
 > [!WARNING]
-> Version 0.5.0 has been installed and tested on one NOTE4C. Read the
+> Version 0.6.0 has been installed and tested on one NOTE4C. Read the
 > [status](#status) before you install. The preflight check in the
 > installation guide tells you to stop if your device's boot data differs
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
@@ -92,7 +92,9 @@ On first start the display shows a setup screen. Join the **emini.ink** Wi-Fi
 network it shows, open `http://192.168.4.1`, type the pairing code from the
 display, and move the device onto your home network. From then on the panel
 lives at the device's own address on that network (Settings → Your device);
-the setup network exists only for the 5-minute setup window. Then search for your town,
+the setup network exists only for the 5-minute setup window. In Breath, the
+default power mode, press the round OK button on the device first and give it a
+few seconds: the panel then answers for five minutes. Then search for your town,
 pick your screens and their compositions, and choose one screen, a day rhythm
 or a rotation, with quiet hours for the night.
 
@@ -104,6 +106,20 @@ or a rotation, with quiet hours for the night.
 <p align="center"><sub>Panel screenshots were taken in a browser on a computer, with sample data.</sub></p>
 
 The [phone panel guide](docs/PANEL.md) walks through every step.
+
+## Breath and Open
+
+Since 0.6.0 Home has two power modes, chosen in the panel under Settings → Battery.
+
+- **Breath**, the default, turns Wi-Fi off between downloads. About twice an hour Home
+  switches the radio on, fetches the weather and the news, and lets it sleep again: overnight
+  on the tested unit the radio was on for 15 to 55 seconds an hour. While it sleeps the phone
+  panel cannot reach the device. Press the round OK button, wait a few seconds, and the
+  panel opens for five minutes; each thing you do in it starts the five minutes again.
+- **Open** keeps Wi-Fi connected, so the panel answers at any time, as in earlier releases.
+  The battery runs down roughly two to four times faster, by our estimate.
+
+On a USB cable, during setup and until a phone is paired, Home keeps Wi-Fi on in either mode.
 
 ## Install
 
@@ -118,15 +134,17 @@ goes into two full backups. In short:
 1. Back up the whole flash twice.
 2. Run [`tools/preflight.py`](tools/preflight.py) on the backups. It compares
    them with the tested NOTE4C and says `READY` or `STOP`.
-3. Write two files from the [0.5.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.5.0):
+3. Write two files from the [0.6.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.0):
    the partition table at `0x8000` and the application at `0x20000`. The
    bootloader and factory data stay untouched.
 4. Verify, start and continue on your phone.
 
 ## Status
 
-Where 0.5.0 stands:
+Where 0.6.0 stands:
 
+- **0.6.0 is the final release of emini Home.** The code stays here under the MIT
+  licence for anyone to build, change and install; no further releases are planned.
 - **Tested on one NOTE4C Devkit** (ESP32-S3, 16 MiB flash, factory partition
   layout). This release was written and verified on that unit with the
   sequence from the installation guide: backups, preflight check, write and
@@ -141,10 +159,11 @@ Where 0.5.0 stands:
 - **Location** comes from a town you search for in the panel, or from an
   estimate based on your internet address, which can land on your provider's
   city.
-- **Battery life is short.** On the tested unit, with three screens taking turns
-  every twenty minutes, a full charge lasted roughly a day and a half. Wi-Fi stays
-  on and there is no sleep of any kind yet, which is where nearly all of that goes.
-  The panel shows voltage and a rough percentage.
+- **Battery life depends on the power mode.** On the tested unit 0.5.2 lasted about a
+  day and a half on a charge. With 0.6.0 we expect two to four weeks in Breath and about
+  a week in Open. Both are estimates: a full discharge on 0.6.0 has not been measured.
+  On a cable Home never sleeps and behaves exactly as before. The panel shows voltage and
+  a rough percentage, and after a few days on battery the emini card shows its own estimate.
 - **Going back to the factory firmware** uses the standard esptool procedure
   and has not yet been tried on a real unit.
 - **Updates** are installed over USB. There is no over-the-air update mechanism.
@@ -193,7 +212,7 @@ emini Home is released under the [MIT License](LICENSE).
 - Display driver and battery curve adapted from the
   [NOTE4C reference firmware by LazyYoun](https://github.com/LazyYoun/youn-ink-fourcolor-firmware) (MIT).
 - Typeface: [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) (SIL OFL 1.1).
-- Chinese glyphs: [Noto Sans CJK SC](https://github.com/notofonts/noto-cjk) (SIL OFL 1.1), GB 2312 level 1.
+- Chinese glyphs: [Noto Sans CJK SC](https://github.com/notofonts/noto-cjk) (SIL OFL 1.1), GB 2312 levels 1 and 2.
 - Small text (12 and 16 px): [TRMNL12 and TRMNL16](https://github.com/usetrmnl/trmnl-framework) pixel fonts by Heavyweight Digital Type Foundry for TRMNL (SIL OFL 1.1).
 - Built on [ESP-IDF](https://github.com/espressif/esp-idf); all components and
   licences are listed in [third-party notices](THIRD_PARTY_NOTICES.md).

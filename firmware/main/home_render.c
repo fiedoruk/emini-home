@@ -15,9 +15,9 @@
 
 enum { BLACK = 0, PAPER = 1, YELLOW = 2, RED = 3, W = 400, H = 300 };
 #ifndef HOME_VERSION_TEXT
-#define HOME_VERSION_TEXT "0.5.2"
+#define HOME_VERSION_TEXT "0.6.0"
 #endif
-/* Brushes (D-HOME-CC-23, narrowed by D-HOME-CC-25): the user picks the tone structure in the
+/* Brushes: the user picks the tone structure in the
  * panel. The line-based screens (engraving, cross-hatch) were dropped after the device test:
  * on narrow strips and thin bars they read as broken stripes, not as texture. */
 enum { RASTER_NOISE = 0, RASTER_DOTS = 1, RASTER_GRID = 2 };
@@ -111,6 +111,7 @@ static const phrase_t chinese[] = {
     {"Computed on the device · nothing downloaded", "在设备上算出 · 不下载数据"},
     {"Connect your phone.", "连接你的手机。"},
     {"Connection failed · saved data", "连接失败 · 使用已存数据"},
+    {"DAYS HERE", "在此天数"},
     {"DOWNLOADS", "下载次数"},
     {"DRAWN IN", "绘制用时"},
     {"Date unknown", "日期未知"},
@@ -131,6 +132,7 @@ static const phrase_t chinese[] = {
     {"Last quarter", "下弦月"},
     {"Learning how long a charge lasts", "正在学习一次充电能用多久"},
     {"Lit %s%%", "照亮 %s%%"},
+    {"MAY SLEEP", "可休眠"},
     {"Make this space yours.", "这块地方留给你。"},
     {"Midnight sun", "极昼"},
     {"Mostly clear", "大致晴朗"},
@@ -153,8 +155,11 @@ static const phrase_t chinese[] = {
      "打开手机面板并使用你的位置。第一份预报会出现在这里。"},
     {"Open the phone panel and use your location. The sun and the moon are then worked out here, with nothing downloaded.",
      "打开手机面板并使用你的位置。日月将在设备上算出，不下载任何数据。"},
+    {"PAPER TIME", "纸屏用时"},
+    {"PICTURES", "画面"},
     {"PICTURES DRAWN", "已绘制画面"},
     {"PM2.5 in µg per m3", "PM2.5 微克每立方米"},
+    {"Panel open for 5 minutes", "面板开放 5 分钟"},
     {"Partly cloudy", "局部多云"},
     {"Password", "密码"},
     {"Polar night", "极夜"},
@@ -167,12 +172,14 @@ static const phrase_t chinese[] = {
     {"Sunrise %s · Sunset %s", "日出 %s · 日落 %s"},
     {"Sunrise and sunset unknown", "日出日落未知"},
     {"Sunset", "日落"},
+    {"THE PROJECT", "项目"},
     {"TODAY", "今天"},
     {"The air, at a glance.", "一眼看懂空气。"},
     {"The sun does not rise today", "今天太阳不升"},
     {"The sun does not set today", "今天太阳不落"},
     {"This screen arrives with the next update.", "这个画面会在下次更新时出现。"},
     {"Thunderstorms", "雷雨"},
+    {"WAKES / H", "唤醒 / 小时"},
     {"Waning crescent", "残月"},
     {"Waning gibbous", "亏凸月"},
     {"Waxing crescent", "蛾眉月"},
@@ -193,7 +200,7 @@ static const phrase_t chinese[] = {
     {"no daylight today", "今天没有日光"},
     {"sunscreen now", "现在涂防晒"},
 };
-/* Checked by the harness: every English phrase above is one the screens really pass to
+/* Checked by a build gate: every English phrase above is one the screens really pass to
  * tr(), and every Chinese character is in the font the device carries (GB 2312). */
 static const char *chinese_for(const char *en)
 {
@@ -1284,7 +1291,7 @@ static void note(canvas_t *c, const home_config_t *cfg, int64_t now)
  * other screen ("emini HOME" without one), a title, one line of help. */
 
 /* ---- Air: air quality, UV and pollen (0.5.0). Every screen uses all four pigments
- * (D-HOME-CC-24): the PM2.5 scale is one warm ramp paper -> yellow -> red, so good air is a
+ * the PM2.5 scale is one warm ramp paper -> yellow -> red, so good air is a
  * light yellow tone and bad air a deep red; beyond the European scale the field is solid red
  * with a black outline. The red "now" marks and the UV sun are the accents. */
 static const char *level_name(int level, int lang)
@@ -1888,7 +1895,7 @@ static int fit_wrapped(const char *s, int w, const int *order, int n)
     return fit_floor(s, order, n);
 }
 /* The colour of the sky at a solar altitude, as three pigments for mix3()
- * (D-HOME-CC-24: every screen uses all four). The ramp runs paper and yellow by
+ * (every screen uses all four pigments). The ramp runs paper and yellow by
  * day, through gold and the red of sunset, into the black of night, where the
  * grains of paper left over read as stars. */
 typedef struct {
@@ -2195,7 +2202,7 @@ static void sky(canvas_t *c, const home_config_t *cfg, int64_t now)
         empty(c, cfg, HOME_SKY, HOME_EMPTY);
         return;
     }
-    c->raster = c->brush; /* the user's brush on the sky's tones (D-HOME-CC-23) */
+    c->raster = c->brush; /* the user's brush on the sky's tones */
     if (!time_valid(now) || !sky_midnight(cfg->timezone, now, &k.midnight) ||
         !home_sky_day(cfg->latitude, cfg->longitude, k.midnight, &k.s)) {
         status(c, cfg->name, sizeof cfg->name, tr(lang, "Sky needs the time.", "Niebo czeka na czas."),
@@ -2358,7 +2365,165 @@ static void info_week(canvas_t *c, const home_stats_t *s, int x, int y, int w, i
     }
     txt(c, x + w - 46, y, 46, 15, 0, tr(lang, "TODAY", "DZIŚ"));
 }
-void home_render_info(const home_config_t *cfg, const home_stats_t *s, int64_t now,
+/* Read a pigment back from the frame. Needed only by the wordmark, which is drawn first in full
+ * colour and then punched through the dot raster. */
+static int readpx(const canvas_t *c, int x, int y)
+{
+    if ((unsigned)x >= W || (unsigned)y >= H)
+        return PAPER;
+    unsigned i = (unsigned)y * 100u + (unsigned)x / 4u, shift = 6u - ((unsigned)x % 4u) * 2u;
+    return (c->frame[i] >> shift) & 3u;
+}
+/* EMINI.INK in large dotted type behind the first face of the card. This card is what people
+ * photograph and post, so the name has to survive a handheld photo. The letters are drawn in
+ * solid yellow first, then punched through the same dot raster the brushes use - so the colour
+ * is never finer than 2 px, the same rule every other screen keeps. */
+static void wordmark(canvas_t *c, int x, int y, int w, int h)
+{
+    static const int order[3] = {5, 7, 3}; /* 48, 44, 30 px */
+    const char *name = "EMINI.INK";
+    int fi = order[2], tw = 0;
+    for (int i = 0; i < 3; ++i) {
+        int candidate = width(order[i], name, 16);
+        if (candidate <= w) {
+            fi = order[i];
+            tw = candidate;
+            break;
+        }
+    }
+    if (!tw)
+        tw = width(fi, name, 16);
+    text(c, x + imax(0, (w - tw) / 2), y, w, h, fi, YELLOW, name, 16);
+    int raster = c->raster;
+    c->raster = RASTER_DOTS;
+    for (int yy = imax(y, 0); yy < imin(y + h, H); ++yy)
+        for (int xx = imax(x, 0); xx < imin(x + w, W); ++xx)
+            if (readpx(c, xx, yy) == YELLOW)
+                pixel(c, xx, yy, mix(c, xx, yy, PAPER, YELLOW, 0.66f));
+    c->raster = raster;
+}
+static void info_battery_line(const home_stats_t *s, char *line, size_t cap, int lang)
+{
+    if (s->charging)
+        snprintf(line, cap, "%s",
+                 s->full ? tr(lang, "Charged", "Naładowana") : tr(lang, "Charging", "Ładuje się"));
+    else if (s->estimate_hours >= 48)
+        snprintf(line, cap, tr(lang, "About %d days", "Około %d dni"), s->estimate_hours / 24);
+    else if (s->estimate_hours >= 0)
+        snprintf(line, cap, tr(lang, "About %d h", "Około %d h"), s->estimate_hours);
+    else
+        snprintf(line, cap, "%s",
+                 tr(lang, "Learning how long a charge lasts", "Uczy się, na jak długo starcza"));
+}
+static void info_footer(canvas_t *c, const home_config_t *cfg, const home_stats_t *s, int64_t now,
+                        int lang)
+{
+    char line[96], a[24];
+    rect(c, 14, 253, 372, 1, BLACK);
+    if (cfg->power_mode == HOME_POWER_BREATH)
+        /* In Breath the press that shows this card also opens the phone panel (HOME_AWAKE_US in
+         * home_wake.h): the one place on the device that says so. The days are on the front. */
+        snprintf(line, sizeof line, "%s",
+                 tr(lang, "Panel open for 5 minutes", "Panel otwarty przez 5 minut"));
+    else if (s->first_start > 0 && time_valid(now)) {
+        long long days = (now - s->first_start) / 86400;
+        snprintf(line, sizeof line, tr(lang, "With you for %lld days", "Z Tobą od %lld dni"), days);
+    } else
+        snprintf(line, sizeof line, "emini Home");
+    txt(c, 14, 257, 232, 17, 0, line);
+    stamp(a, sizeof a, now, lang, cfg->clock24, cfg->timezone);
+    txt(c, 250, 257, 136, 17, 0, a);
+    snprintf(line, sizeof line, "%s · %s · emini.ink/home", HOME_VERSION_TEXT,
+             s->address[0] ? s->address : "home.local");
+    txt(c, 14, 273, 372, 17, 0, line);
+}
+/* First face: the battery, the wordmark and the QR code. Nothing that needs translating. */
+static void info_front(canvas_t *c, const home_config_t *cfg, const home_stats_t *s, int64_t now)
+{
+    int lang = c->lang;
+    char value[32], line[96];
+    txt(c, 14, 40, 176, 15, 0, tr(lang, "BATTERY", "BATERIA"));
+    if (s->percent >= 0)
+        snprintf(value, sizeof value, "%d%%", s->percent);
+    else
+        snprintf(value, sizeof value, "—");
+    txt(c, 12, 54, 178, 62, 4, value);
+    info_battery_line(s, line, sizeof line, lang);
+    txt(c, 14, 118, 176, 24, 1, line);
+    battery_bar(c, 14, 146, 168, 26, s->percent, s->charging);
+    snprintf(value, sizeof value, "%lu", (unsigned long)s->pictures);
+    info_number(c, 200, 40, 88, tr(lang, "PICTURES", "OBRAZÓW"), value);
+    if (s->first_start > 0 && time_valid(now))
+        snprintf(value, sizeof value, "%lld", (long long)((now - s->first_start) / 86400));
+    else
+        snprintf(value, sizeof value, "—");
+    info_number(c, 200, 96, 88, tr(lang, "DAYS HERE", "DNI TUTAJ"), value);
+    home_qr_paint(c->frame, "https://emini.ink/home", 298, 40, 88, 88, NULL);
+    txt(c, 298, 132, 88, 15, 0, tr(lang, "THE PROJECT", "PROJEKT"));
+    wordmark(c, 14, 182, 372, 56);
+    info_footer(c, cfg, s, now, lang);
+}
+/* Second face: everything the device knows about itself. For the curious, not for the photo. */
+static void info_nerd(canvas_t *c, const home_config_t *cfg, const home_stats_t *s, int64_t now)
+{
+    int lang = c->lang;
+    char value[32], line[96];
+    /* A warm field under the counters: otherwise the right half is black text alone, and the
+     * screen has four pigments. */
+    for (int y = 32; y < 188; ++y) {
+        float fade = 0.13f * (1.0f - (float)((y & ~1) - 32) / 156.0f);
+        for (int x = 198; x < 390; ++x)
+            pixel(c, x, y, mix(c, x, y, PAPER, YELLOW, fade));
+    }
+    txt(c, 14, 36, 176, 15, 0, tr(lang, "BATTERY", "BATERIA"));
+    if (s->percent >= 0)
+        snprintf(value, sizeof value, "%d%%", s->percent);
+    else
+        snprintf(value, sizeof value, "—");
+    txt(c, 12, 50, 178, 48, 7, value);
+    info_battery_line(s, line, sizeof line, lang);
+    txt(c, 14, 102, 176, 24, 1, line);
+    battery_bar(c, 14, 132, 168, 26, s->percent, s->charging);
+    snprintf(value, sizeof value, "%lu", (unsigned long)s->pictures);
+    info_number(c, 208, 36, 88, tr(lang, "PICTURES", "OBRAZÓW"), value);
+    if (s->awake_hours >= 48)
+        snprintf(value, sizeof value, "%lu d %lu h", (unsigned long)(s->awake_hours / 24),
+                 (unsigned long)(s->awake_hours % 24));
+    else
+        snprintf(value, sizeof value, "%lu h", (unsigned long)s->awake_hours);
+    info_number(c, 298, 36, 88, tr(lang, "AWAKE", "CZUWA"), value);
+    snprintf(value, sizeof value, "%lu", (unsigned long)s->fetches);
+    info_number(c, 208, 90, 88, tr(lang, "DOWNLOADS", "POBRAŃ"), value);
+    snprintf(value, sizeof value, "%lu.%lu s", (unsigned long)(s->refresh_ms / 1000),
+             (unsigned long)((s->refresh_ms % 1000) / 100));
+    info_number(c, 298, 90, 88, tr(lang, "PAPER TIME", "PAPIER"), value);
+    if (s->wakes_per_hour)
+        snprintf(value, sizeof value, "%lu", (unsigned long)s->wakes_per_hour);
+    else
+        snprintf(value, sizeof value, "—");
+    info_number(c, 208, 144, 88, tr(lang, "WAKES / H", "WYBUDZEŃ"), value);
+    if (s->sleep_percent >= 0)
+        snprintf(value, sizeof value, "%d%%", s->sleep_percent);
+    else
+        snprintf(value, sizeof value, "—");
+    info_number(c, 298, 144, 88, tr(lang, "MAY SLEEP", "MOŻE SPAĆ"), value);
+    info_week(c, s, 14, 192, 372, 58, lang);
+    info_footer(c, cfg, s, now, lang);
+}
+/* Which face is on screen - two dots in the top bar, like pages. No words, so nothing to
+ * translate and no risk of a label not fitting its column. */
+static void face_dots(canvas_t *c, int face)
+{
+    for (int i = 0; i < HOME_INFO_FACES; ++i) {
+        int cx = 316 + i * 14, cy = 17;
+        for (int y = -4; y <= 4; ++y)
+            for (int x = -4; x <= 4; ++x)
+                if (x * x + y * y <= (i == face ? 16 : 16))
+                    pixel(c, cx + x, cy + y,
+                          (i == face || x * x + y * y > 6) ? BLACK : PAPER);
+    }
+}
+void home_render_info(const home_config_t *cfg, const home_stats_t *s, int64_t now, int face,
                       uint8_t frame[HOME_FRAME_BYTES])
 {
     if (!frame || !cfg || !s)
@@ -2367,63 +2532,12 @@ void home_render_info(const home_config_t *cfg, const home_stats_t *s, int64_t n
     canvas_t c = {frame, (cfg->texture == 2 || cfg->texture == 4) ? cfg->texture : 1,
                   imin(cfg->intensity, 2), lang_of(cfg), RASTER_NOISE,
                   cfg->brush <= RASTER_GRID ? cfg->brush : RASTER_NOISE};
-    int lang = c.lang;
     top(&c, cfg, "EMINI");
-    char value[32], line[96], a[24];
-    /* A faint warm panel behind the counters: the right half of this card is otherwise all
-     * black text, and the screen has four pigments (D-HOME-CC-24). */
-    for (int y = 36; y < 170; ++y) {
-        float fade = 0.17f * (1.0f - (float)((y & ~1) - 36) / 134.0f);
-        for (int x = 198; x < 390; ++x)
-            pixel(&c, x, y, mix(&c, x, y, PAPER, YELLOW, fade));
-    }
-    /* Battery, the loudest thing on this card. */
-    txt(&c, 14, 40, 176, 15, 0, tr(lang, "BATTERY", "BATERIA"));
-    if (s->percent >= 0)
-        snprintf(value, sizeof value, "%d%%", s->percent);
+    face_dots(&c, face);
+    if (face == HOME_INFO_NERD)
+        info_nerd(&c, cfg, s, now);
     else
-        snprintf(value, sizeof value, "—");
-    txt(&c, 12, 54, 178, 62, 4, value);
-    if (s->charging)
-        snprintf(line, sizeof line, "%s", s->full ? tr(lang, "Charged", "Naładowana")
-                                                  : tr(lang, "Charging", "Ładuje się"));
-    else if (s->estimate_hours >= 48)
-        snprintf(line, sizeof line, tr(lang, "About %d days", "Około %d dni"), s->estimate_hours / 24);
-    else if (s->estimate_hours >= 0)
-        snprintf(line, sizeof line, tr(lang, "About %d h", "Około %d h"), s->estimate_hours);
-    else
-        snprintf(line, sizeof line, "%s",
-                 tr(lang, "Learning how long a charge lasts", "Uczy się, na jak długo starcza"));
-    txt(&c, 14, 118, 176, 24, 1, line);
-    battery_bar(&c, 14, 146, 168, 26, s->percent, s->charging);
-    /* Counters: the numbers people photograph. */
-    snprintf(value, sizeof value, "%lu", (unsigned long)s->pictures);
-    info_number(&c, 208, 40, 178, tr(lang, "PICTURES DRAWN", "NARYSOWANYCH OBRAZÓW"), value);
-    if (s->awake_hours >= 48)
-        snprintf(value, sizeof value, tr(lang, "%lu d %lu h", "%lu d %lu h"),
-                 (unsigned long)(s->awake_hours / 24), (unsigned long)(s->awake_hours % 24));
-    else
-        snprintf(value, sizeof value, "%lu h", (unsigned long)s->awake_hours);
-    info_number(&c, 208, 82, 178, tr(lang, "AWAKE", "CZUWA"), value);
-    snprintf(value, sizeof value, "%lu", (unsigned long)s->fetches);
-    info_number(&c, 208, 124, 88, tr(lang, "DOWNLOADS", "POBRAŃ"), value);
-    snprintf(value, sizeof value, "%lu ms", (unsigned long)s->render_ms);
-    info_number(&c, 298, 124, 88, tr(lang, "DRAWN IN", "RYSOWANIE"), value);
-    /* A week of battery, then where this thing lives and where it comes from. */
-    info_week(&c, s, 14, 180, 286, 76, lang);
-    home_qr_paint(frame, "https://emini.ink/home", 312, 172, 74, 74, NULL);
-    rect(&c, 14, 261, 372, 1, BLACK);
-    if (s->first_start > 0 && time_valid(now)) {
-        long long days = (now - s->first_start) / 86400;
-        snprintf(line, sizeof line, tr(lang, "With you for %lld days", "Z Tobą od %lld dni"), days);
-    } else
-        snprintf(line, sizeof line, "emini Home");
-    txt(&c, 14, 265, 232, 17, 0, line);
-    stamp(a, sizeof a, now, lang, cfg->clock24, cfg->timezone);
-    txt(&c, 250, 265, 136, 17, 0, a);
-    snprintf(line, sizeof line, "%s · %s · emini.ink/home", HOME_VERSION_TEXT,
-             s->address[0] ? s->address : "home.local");
-    txt(&c, 14, 281, 372, 17, 0, line);
+        info_front(&c, cfg, s, now);
 }
 void home_render_setup(const char *ssid, const char *password, const char *code,
                        const char *address, int lang, uint8_t frame[HOME_FRAME_BYTES])
@@ -2496,10 +2610,10 @@ void home_render_status(const char *title, const char *body, int lang,
     status(&c, NULL, 0, title, body);
 }
 #ifdef HOME_TESTCARD
-/* Panel measurement cards (plan 0.5.0, step 0.1). Compiled only with
+/* Panel measurement cards. Compiled only with
  * -DHOME_TESTCARD=1, never part of a release image. Cell 1 px colour, cell 3
- * and blue noise are deliberate here, outside the R0 rule, to measure what the
- * pigments do before Renderer 2 picks its minimum colour cluster. */
+ * and blue noise are deliberate here, outside the 2 px colour rule, to measure
+ * what the pigments do before the renderer picks its minimum colour cluster. */
 static int card_threshold(int x, int y, int cell, bool noise)
 {
     int cx = x / cell, cy = y / cell;

@@ -2,6 +2,8 @@
 #include "home_fetch.h"
 #include "home_places.h"
 #include "home_config.h"
+#include "home_power.h"
+#include "home_wake.h"
 #include "esp_wifi.h"
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
@@ -14,9 +16,41 @@
 #include <stdlib.h>
 #include <time.h>
 
+/* Beacons the station may sleep through between wake-ups (see esp_wifi_set_ps() below). */
+#define HOME_LISTEN_INTERVAL 3
+/* Breath mode (see control_task). Background work - a fetch, the first clock sync - may keep the
+ * radio on this long without anything in progress; after that it waits, so a router that is gone
+ * cannot hold the radio on for good. */
+#define HOME_BACKGROUND_US INT64_C(90000000)
+/* The wait doubles after each such session, up to an hour: a router that stays off overnight
+ * must not cost what a normal night costs a second time. The first address resets it. */
+#define HOME_RETRY_US INT64_C(900000000)
+#define HOME_RETRY_MAX_US INT64_C(3600000000)
+/* After connecting the radio stays on a little: SNTP waits up to five seconds before its first
+ * request, and the .local name is announced as soon as the address arrives. */
+#define HOME_HOLD_US INT64_C(10000000)
+/* A stop posts its events to the event loop; a start right behind it could receive them. */
+#define HOME_OFF_MIN_US INT64_C(5000000)
+/* While the radio is on, sources due within this many seconds are fetched in the same session. */
+#define HOME_BATCH_S 300
+
 static esp_netif_t *station;
 static int64_t next_connect;
 static bool started;
+/* Whether Wi-Fi is started. Breath mode stops it between fetches; control_task alone switches it,
+ * under home_lock, and the event handler reads it to tell a deliberate stop from a lost network. */
+static bool radio_on;
+/* Seconds with the radio on: the whole day in Open mode, the fetches and the panel windows in
+ * Breath. Logged per hour in the power log. */
+static int64_t radio_us, radio_at;
+int64_t home_network_radio_seconds(void)
+{
+    return radio_us / 1000000;
+}
+bool home_network_radio_on(void)
+{
+    return radio_on;
+}
 static bool ap_enabled = true;
 static const char *TAG = "home_net";
 enum { SCAN_IDLE, SCAN_RUNNING, SCAN_READY, SCAN_ERROR };
@@ -60,7 +94,7 @@ static void events(void *arg, esp_event_base_t base, int32_t id, void *data)
         memcpy(actual_ssid, associated.ssid, 32);
         actual_ssid[32] = 0;
         home_lock();
-        if (home_runtime.wifi_pending || strcmp(actual_ssid, home_runtime.secrets.ssid)) {
+        if (home_runtime.wifi_pending || !radio_on || strcmp(actual_ssid, home_runtime.secrets.ssid)) {
             home_unlock();
             return;
         }
@@ -77,7 +111,8 @@ static void events(void *arg, esp_event_base_t base, int32_t id, void *data)
         wifi_event_sta_disconnected_t *event = data;
         home_lock();
         home_runtime.online = false;
-        if (home_runtime.wifi_pending) {
+        /* A new network being applied, or Breath switching the radio off: neither is an error. */
+        if (home_runtime.wifi_pending || !radio_on) {
             home_unlock();
             return;
         }
@@ -219,7 +254,9 @@ static bool scan_step(int64_t now, bool online)
     scan_requested = scan_done = false;
     home_unlock();
     if (draining) {
-        if (done) {
+        /* A stopped scan normally ends with its done event; if none comes, give up after 20 s
+         * rather than hold the radio on for a scan that is over. */
+        if (done || now - scan_started > INT64_C(20000000)) {
             esp_wifi_clear_ap_list();
             home_lock();
             scan_draining = false;
@@ -303,11 +340,13 @@ static bool scan_step(int64_t now, bool online)
         esp_wifi_clear_ap_list();
     return scan_active;
 }
-/* Set from the SNTP callback once a server has actually set the clock. */
+/* Set from the SNTP callback once a server has actually set the clock, and when (uptime seconds). */
 static volatile bool sntp_synced;
+static volatile uint32_t sntp_at_s;
 static void on_sntp_sync(struct timeval *tv)
 {
     (void)tv;
+    sntp_at_s = (uint32_t)(esp_timer_get_time() / 1000000);
     sntp_synced = true;
 }
 esp_err_t home_network_start(void)
@@ -364,7 +403,20 @@ esp_err_t home_network_start(void)
         return e;
     if ((e = esp_wifi_start()) != ESP_OK)
         return e;
+    /* MAX_MODEM with a listen interval of three beacons, set explicitly rather than left to the
+     * IDF default, which can change under us with the next IDF release. With MIN_MODEM the Wi-Fi
+     * driver woke about seven times a second and held APB_FREQ_MAX about 50 ms each time: that
+     * lock outranks light sleep and kept the chip awake about a third of the time, whatever our
+     * own code did. With every third beacon it wakes about three times a second and the share
+     * falls to under a fifth: the chip is free to sleep about 80 % of the time. The cost is latency
+     * for frames the access point buffers, multicast mDNS included: measured, the panel still
+     * answers in well under a second and home-xxxx.local still resolves. A longer interval would
+     * save more but risks both, so it stays at three. */
+    esp_err_t ps = esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
+    if (ps != ESP_OK)
+        ESP_LOGW(TAG, "Wi-Fi power save not set: %s", esp_err_to_name(ps));
     started = true;
+    radio_on = true;
     esp_sntp_config_t ntp = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     ntp.start = true;
     ntp.wait_for_sync = false;
@@ -393,6 +445,7 @@ void home_network_apply(void)
     home_unlock();
     if (!has_ssid)
         return;
+    config.sta.listen_interval = HOME_LISTEN_INTERVAL; /* see the comment at esp_wifi_set_ps() */
     config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN; /* every channel, then the strongest match */
     config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
@@ -421,19 +474,89 @@ void home_network_apply(void)
     if (e != ESP_OK)
         ESP_LOGW(TAG, "Station configuration/connect failed: %s", esp_err_to_name(e));
 }
+/* Breath mode turns the radio off whenever nothing needs it (home_radio_wanted) and on again for a
+ * fetch, a press of OK or a reason that holds the chip awake anyway. Open mode never turns it off.
+ * The stop happens here and nowhere else: under the lock the radio is marked off and the station
+ * offline first, so the source worker cannot start a fetch on a connection about to disappear and
+ * the event handler does not mistake the stop for a lost network. */
 static void control_task(void *unused)
 {
     (void)unused;
+    bool was_online = false;
+    int64_t hold_until = 0, retry_at = 0, retry_gap = HOME_RETRY_US, background_since = 0,
+            off_at = 0;
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(250));
+        /* Once a second. Nothing here is urgent: reconnection waits fifteen to thirty seconds
+         * anyway, and the setup access point opens for five minutes. */
+        vTaskDelay(pdMS_TO_TICKS(1000));
         int64_t mono = esp_timer_get_time();
+        home_power_state_t pw;
+        home_power_snapshot(&pw);
         home_lock();
+        bool on = radio_on;
+        if (on) {
+            if (radio_at)
+                radio_us += mono - radio_at;
+            radio_at = mono;
+        } else
+            radio_at = 0;
         bool online = home_runtime.online, pending = home_runtime.wifi_pending;
         bool has_ssid = home_runtime.secrets.ssid[0] != 0;
         bool want_ap = mono < home_runtime.pair_until;
         int64_t reconnect_at = next_connect;
+        home_radio_in_t in = {
+            .breath = home_runtime.config.power_mode == HOME_POWER_BREATH,
+            .reasons = pw.reasons,
+            .now = mono,
+            .awake_until = home_runtime.awake_until,
+            /* Not wifi_pending: a new network is applied by this task, between two decisions,
+             * and a network that keeps failing must not hold the radio on for good. */
+            .busy = home_runtime.source_active || home_runtime.api_active || scan_requested ||
+                    scan_active || scan_draining,
+            .fetch_due = home_sources_due(&home_runtime.config, &home_runtime.data, time(NULL), 0),
+            .clock_unset = !sntp_synced,
+            .hold_until = hold_until,
+            .retry_at = retry_at,
+        };
+        /* Background only: the radio is on for a fetch or the clock, nobody is waiting for it and
+         * nothing is in progress. That may not last longer than HOME_BACKGROUND_US. */
+        home_radio_in_t fg = in;
+        fg.fetch_due = fg.clock_unset = false;
+        fg.hold_until = 0;
+        if (!on || home_radio_wanted(&fg))
+            background_since = 0;
+        else if (!background_since)
+            background_since = mono;
+        else if (mono - background_since > HOME_BACKGROUND_US) {
+            retry_at = in.retry_at = mono + retry_gap;
+            ESP_LOGW(TAG, "Radio on for %llds with nothing done; next try in %lld minutes",
+                     (long long)(HOME_BACKGROUND_US / 1000000), (long long)(retry_gap / 60000000));
+            retry_gap = retry_gap * 2 > HOME_RETRY_MAX_US ? HOME_RETRY_MAX_US : retry_gap * 2;
+            background_since = 0;
+        }
+        bool want = home_radio_wanted(&in);
+        if (on && !want) {
+            radio_on = false;
+            home_runtime.online = false;
+            station_connecting = false;
+        }
+        if (!on && want && mono - off_at >= HOME_OFF_MIN_US) {
+            radio_on = true;
+            station_connecting = has_ssid && !pending;
+            wifi_error[0] = 0;
+            next_connect = pending ? mono : mono + INT64_C(30000000);
+        }
+        bool turn_on = !on && radio_on;
         home_unlock();
-        bool scanning = scan_step(mono, online);
+        if (on && !want) {
+            esp_err_t e = esp_wifi_stop();
+            off_at = mono;
+            was_online = false;
+            ESP_LOGI(TAG, "Radio off: %s", esp_err_to_name(e));
+            continue;
+        }
+        if (!on && !turn_on)
+            continue;
         if (want_ap != ap_enabled) {
             esp_err_t e = esp_wifi_set_mode(want_ap ? WIFI_MODE_APSTA : WIFI_MODE_STA);
             if (e == ESP_OK) {
@@ -441,6 +564,33 @@ static void control_task(void *unused)
                 ESP_LOGI(TAG, "Setup access point %s", want_ap ? "opened" : "closed");
             }
         }
+        if (turn_on) {
+            esp_err_t e = esp_wifi_start();
+            if (e != ESP_OK) { /* marked off again, so the next turn tries the start once more */
+                home_lock();
+                radio_on = false;
+                station_connecting = false;
+                home_unlock();
+                off_at = mono;
+                ESP_LOGW(TAG, "Radio start failed: %s", esp_err_to_name(e));
+                continue;
+            }
+            esp_wifi_set_ps(WIFI_PS_MAX_MODEM); /* as at boot; see home_network_start() */
+            if (has_ssid && !pending)
+                e = esp_wifi_connect();
+            ESP_LOGI(TAG, "Radio on: %s", esp_err_to_name(e));
+            continue;
+        }
+        if (online && !was_online) {
+            hold_until = mono + HOME_HOLD_US;
+            retry_gap = HOME_RETRY_US;
+            /* The clock drifts while the chip sleeps and the radio is off, but the time servers
+             * are still asked at most once an hour, as the privacy notes say. */
+            if (!sntp_synced || (uint32_t)(mono / 1000000) - sntp_at_s >= 3600)
+                esp_netif_sntp_start();
+        }
+        was_online = online;
+        bool scanning = scan_step(mono, online);
         if (pending && !scanning && mono >= reconnect_at) {
             home_network_apply();
         } else if (!pending && !scanning && !online && has_ssid && mono >= reconnect_at) {
@@ -499,7 +649,9 @@ void home_sources_task(void *unused)
         if (!online || !valid_clock)
             continue;
         home_lock();
-        if (home_runtime.maintenance) {
+        /* Online is checked again under the same lock that marks the worker busy: Breath may
+         * have switched the radio off since the first look, and a stop never waits for us. */
+        if (home_runtime.maintenance || !home_runtime.online) {
             home_unlock();
             continue;
         }
@@ -528,6 +680,15 @@ void home_sources_task(void *unused)
             home_runtime.source_active = false;
             home_unlock();
             continue; /* same worker, never simultaneous TLS or config/NVS write */
+        }
+        /* Breath: the radio is on now, so sources due in the next few minutes come along instead
+         * of waking it again. Not after a failure - that source keeps its own pause. The fetch
+         * functions check next_fetch themselves, hence zero on this copy. */
+        if (c->power_mode == HOME_POWER_BREATH) {
+            home_source_meta_t *m[] = {&d->weather.meta, &d->feed.meta, &d->air.meta};
+            for (size_t i = 0; i < sizeof m / sizeof m[0]; i++)
+                if (!m[i]->error[0] && now + HOME_BATCH_S >= m[i]->next_fetch)
+                    m[i]->next_fetch = 0;
         }
         bool changed = false;
         if (c->location_ready && now >= d->weather.meta.next_fetch) {

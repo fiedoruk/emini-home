@@ -1,6 +1,12 @@
 #include "home_runtime.h"
+#include "home_power.h"
+#include "home_panel.h"
+#ifdef HOME_PM_PROFILE
+#include "esp_pm.h"
+#endif
 #include "home_config.h"
 #include "home_places.h"
+#include "home_wake.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_random.h"
@@ -235,6 +241,47 @@ static cJSON *feed_json(const home_feed_t *f)
     }
     return j;
 }
+/* The power log: a week of hours, oldest first. Behind the token, because it tells the rhythm of
+ * the household (when the device sat on a cable, when someone touched it). */
+static cJSON *power_log_json(void)
+{
+    cJSON *j = cJSON_CreateObject();
+    cJSON *hours = j ? cJSON_AddArrayToObject(j, "hours") : NULL;
+    if (!hours) {
+        cJSON_Delete(j);
+        return NULL;
+    }
+    home_lock();
+    home_power_log_t log = home_runtime.power_log;
+    home_unlock();
+    int count = log.written < HOME_POWER_HOURS ? log.written : HOME_POWER_HOURS;
+    int start = log.written < HOME_POWER_HOURS ? 0 : log.head;
+    bool ok = cJSON_AddNumberToObject(j, "hours_kept", count) != NULL;
+    for (int i = 0; ok && i < count; i++) {
+        const home_power_hour_t *h = &log.hour[(start + i) % HOME_POWER_HOURS];
+        if (!h->at)
+            continue;
+        cJSON *e = cJSON_CreateObject();
+        ok = e && cJSON_AddNumberToObject(e, "at", h->at) &&
+             (h->millivolts ? cJSON_AddNumberToObject(e, "millivolts", h->millivolts)
+                            : cJSON_AddNullToObject(e, "millivolts")) &&
+             cJSON_AddNumberToObject(e, "flags", h->flags) &&
+             cJSON_AddNumberToObject(e, "pictures", h->pictures) &&
+             cJSON_AddNumberToObject(e, "fetches", h->fetches) &&
+             cJSON_AddNumberToObject(e, "held_s", h->held_s) &&
+             cJSON_AddNumberToObject(e, "panel_s", h->panel_s) &&
+             cJSON_AddNumberToObject(e, "radio_s", h->radio_s);
+        if (ok)
+            cJSON_AddItemToArray(hours, e);
+        else
+            cJSON_Delete(e);
+    }
+    if (!ok) {
+        cJSON_Delete(j);
+        return NULL;
+    }
+    return j;
+}
 static esp_err_t status(httpd_req_t *r, int token)
 {
     cJSON *j = cJSON_CreateObject();
@@ -297,6 +344,10 @@ static esp_err_t status(httpd_req_t *r, int token)
              cJSON_AddNumberToObject(metrics, "free_psram",
                                      heap_caps_get_free_size(MALLOC_CAP_SPIRAM)) &&
              cJSON_AddNumberToObject(metrics, "uptime_s", esp_timer_get_time() / 1000000) &&
+             /* The device's own clock, so drift while the radio is off can be measured. */
+             cJSON_AddNumberToObject(metrics, "time", (double)time(NULL)) &&
+             cJSON_AddNumberToObject(metrics, "loop_wakes", home_loop_wakes()) &&
+             cJSON_AddNumberToObject(metrics, "busy_polls", home_panel_busy_polls()) &&
              cJSON_AddNumberToObject(j, "config_revision", h->config.revision) &&
              cJSON_AddNumberToObject(j, "paired_clients", count) &&
              cJSON_AddNumberToObject(j, "pause_remaining",
@@ -304,6 +355,23 @@ static esp_err_t status(httpd_req_t *r, int token)
                                          ? (h->manual_until - esp_timer_get_time()) / 1000000
                                          : 0) &&
              cJSON_AddNumberToObject(j, "refresh_queued", h->refresh_requested);
+        /* Power: without this there is no way to tell from outside a chip that sleeps from one
+         * that only looks the same. */
+        home_power_state_t pw;
+        home_power_snapshot(&pw);
+        cJSON *power = ok ? cJSON_AddObjectToObject(j, "power") : NULL;
+        int64_t awake = h->awake_until - esp_timer_get_time();
+        ok = ok && power &&
+             cJSON_AddStringToObject(power, "mode",
+                                     h->config.power_mode == HOME_POWER_OPEN ? "open" : "breath") &&
+             cJSON_AddNumberToObject(power, "awake_seconds", awake > 0 ? awake / 1000000 : 0) &&
+             cJSON_AddBoolToObject(power, "radio", home_network_radio_on()) &&
+             cJSON_AddBoolToObject(power, "managed", pw.enabled) &&
+             cJSON_AddBoolToObject(power, "locks_held", pw.locks_held) &&
+             cJSON_AddNumberToObject(power, "reasons", pw.reasons) &&
+             cJSON_AddNumberToObject(power, "held_s", (double)pw.held_s) &&
+             cJSON_AddNumberToObject(power, "free_s", (double)pw.free_s);
+
         cJSON *sources = ok ? cJSON_AddObjectToObject(j, "sources") : NULL;
         ok = ok && sources && json_child(sources, "weather", meta_json(&h->data.weather.meta)) &&
              json_child(sources, "feed", feed_json(&h->data.feed)) &&
@@ -410,6 +478,15 @@ static esp_err_t api_inner(httpd_req_t *r)
     bool pairing = !strcmp(path, "/api/pair") && r->method == HTTP_POST;
     if (token < 0 && !pairing)
         return error(r, "401 Unauthorized", "Pair this phone with the code on Home");
+    /* Breath mode: a paired phone in use keeps the device reachable. Not what the panel reads by
+     * itself - the status (answered above), the picture after it changed, and requests marked
+     * X-Home-Auto - or a tab left open would keep the radio on. */
+    if (!(r->method == HTTP_GET && !strcmp(path, "/api/frame")) &&
+        !httpd_req_get_hdr_value_len(r, "X-Home-Auto")) {
+        home_lock();
+        home_runtime.awake_until = esp_timer_get_time() + HOME_AWAKE_US;
+        home_unlock();
+    }
     home_lock();
     bool maintenance = home_runtime.maintenance;
     home_unlock();
@@ -418,6 +495,28 @@ static esp_err_t api_inner(httpd_req_t *r)
     if (r->method == HTTP_GET) {
         if (!strcmp(path, "/api/wifi/scan"))
             return json_send(r, home_network_scan_json());
+        if (!strcmp(path, "/api/power"))
+            return json_send(r, power_log_json());
+#ifdef HOME_PM_PROFILE
+        /* Diagnostic build: the power management lock table over the network, so it can be read
+         * ON BATTERY. On a cable the chip does not sleep anyway (our lock plus the USB lock from
+         * IDF), so a console snapshot cannot answer the question that matters here.
+         * open_memstream is the approach suggested in the esp_pm.h header. */
+        if (!strcmp(path, "/api/pm")) {
+            char *bufor = NULL;
+            size_t dlugosc = 0;
+            FILE *strumien = open_memstream(&bufor, &dlugosc);
+            if (!strumien)
+                return error(r, "503 Service Unavailable", "out_of_memory");
+            esp_pm_dump_locks(strumien);
+            fclose(strumien);
+            esp_err_t sent = httpd_resp_set_type(r, "text/plain");
+            if (sent == ESP_OK)
+                sent = httpd_resp_send(r, bufor ? bufor : "", HTTPD_RESP_USE_STRLEN);
+            free(bufor);
+            return sent;
+        }
+#endif
         if (!strcmp(path, "/api/timezones"))
             return json_send(r, home_timezones_json());
         if (!strcmp(path, "/api/location"))

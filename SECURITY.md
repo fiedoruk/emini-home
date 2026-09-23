@@ -15,12 +15,12 @@ project, so replies are best effort.
 
 | Version | Security fixes |
 | --- | --- |
-| 0.4.x | best effort |
+| 0.6.0 (final release) | best effort |
 
-Fixes come as new releases and are installed over USB with the
+0.6.0 is the final release and no further releases are planned. If a fix were
+ever needed, it would come as a new release, installed over USB with the
 [installation guide](docs/INSTALL.md). The firmware has no over-the-air update
-mechanism and does not check for new versions, so watch this repository's
-releases on GitHub to hear about them. Keep the backup from your first
+mechanism and does not check for new versions. Keep the backup from your first
 installation: it is your only copy of this unit's factory firmware and data.
 
 ## Security model

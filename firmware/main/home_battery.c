@@ -38,10 +38,12 @@ void home_battery_task(void *unused)
         int state = (!gpio_get_level(GPIO_NUM_2) ? 1 : 0) |
                     (gpio_get_level(GPIO_NUM_1) ? 2 : 0);
         if (state != last_pins) { last_pins = state; stable = 0; }
-        if (stable < 10) stable++;
-        /* Require a second of consistent charger signals. Alternating or
-         * contradictory signals can mean a missing battery: stay unknown. */
-        sample.charge_valid = stable >= 10 && state != 3;
+        if (stable < 3) stable++;
+        /* Still about a second of consistent charger signals, now three samples a second
+         * apart instead of ten a tenth of a second apart: same confidence, a hundredth of
+         * the wake-ups. Alternating or contradictory signals can mean a missing battery:
+         * stay unknown. */
+        sample.charge_valid = stable >= 3 && state != 3;
         sample.charging = state == 1;
         sample.full = state == 2;
         int64_t now = esp_timer_get_time();
@@ -70,6 +72,6 @@ void home_battery_task(void *unused)
         home_lock();
         home_runtime.battery = sample;
         home_unlock();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

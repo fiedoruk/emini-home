@@ -2059,6 +2059,9 @@ summary:focus-visible,
   background: var(--soft);
   border: 2px solid var(--accent);
 }
+.app-v2 .power-options {
+  grid-template-columns: repeat(2, 1fr);
+}
 .schedule-options {
   margin-top: 22px;
 }

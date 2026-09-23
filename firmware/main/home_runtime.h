@@ -26,7 +26,10 @@ typedef struct {
     uint64_t request_id, manual_id;
     bool pending_manual;
     int64_t manual_until, last_switch, pair_until, info_until;
+    /* Breath mode: the radio stays on and the panel answers until then (a press of OK, a request). */
+    int64_t awake_until;
     home_counters_t counters;
+    home_power_log_t power_log;
     uint8_t refresh_requested;
     unsigned api_active;
     /* The last gesture the device recognised, so a press can be checked without a cable. */
@@ -40,8 +43,20 @@ void home_lock(void);
 void home_unlock(void);
 void home_begin_pairing(void);
 void home_stats_snapshot(home_stats_t *out, int64_t now);
+/* The main loop, split so the host simulation can drive it: begin() takes the buffers and
+ * resets what one run remembers, step() is one turn. app_main does nothing else but wait
+ * twenty milliseconds between turns. */
+void home_locks_init(void);
+void home_loop_begin(home_config_t *c, home_data_t *d, uint8_t *work);
+void home_loop_step(void);
+int home_loop_wait_ms(void);
+void home_loop_wait(void);
+/* How many times the loop has woken since boot - in /api/status, as evidence that the chip really sleeps. */
+uint32_t home_loop_wakes(void);
 esp_err_t home_network_start(void);
 void home_network_apply(void);
+int64_t home_network_radio_seconds(void);
+bool home_network_radio_on(void);
 esp_err_t home_network_credentials(const char *ssid, const char *password);
 esp_err_t home_network_scan_start(void);
 cJSON *home_network_scan_json(void);

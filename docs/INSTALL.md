@@ -4,7 +4,7 @@
 > files from Chrome or Edge, with the file or a link to it. This guide is the careful
 > route: two full backups and a preflight check before anything is written.
 
-This guide installs emini Home 0.5.0 on a **ZECTRIX NOTE4C Devkit** from a
+This guide installs emini Home 0.6.0 on a **ZECTRIX NOTE4C Devkit** from a
 computer, using Espressif's `esptool`. Most of the time goes into two full
 backups of the 16 MiB flash.
 
@@ -36,12 +36,12 @@ to the factory firmware has not yet been tried on a real NOTE4C.
   new terminal later, run the activate line again before the next esptool
   command.
 
-- From the [v0.5.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.5.0):
-  `emini-home-0.5.0-note4c.bin`, `emini-home-0.5.0-partition-table.bin`,
-  `emini-home-0.5.0-sdkconfig.txt` and `SHA256SUMS`.
-- A copy of this repository at tag `v0.5.0`, for `tools/preflight.py`.
+- From the [v0.6.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.0):
+  `emini-home-0.6.0-note4c.bin`, `emini-home-0.6.0-partition-table.bin`,
+  `emini-home-0.6.0-sdkconfig.txt` and `SHA256SUMS`.
+- A copy of this repository at tag `v0.6.0`, for `tools/preflight.py`.
   Download **Source code (zip)** from the same release and unpack it outside
-  your installation folder. It unpacks into a folder named `emini-home-0.5.0`.
+  your installation folder. It unpacks into a folder named `emini-home-0.6.0`.
 
 ## What changes on the device
 
@@ -50,7 +50,7 @@ Only two areas of the 16 MiB flash are written.
 | Address | Size | Before | After |
 | --- | --- | --- | --- |
 | `0x8000` | 3 KiB | factory partition table | same table plus one 64 KiB settings area, `home_nvs` at `0x10000` |
-| `0x20000` | about 1.6 MiB of the 4,032 KiB application slot | factory application | emini Home |
+| `0x20000` | about 3.6 MiB of the 4,032 KiB application slot | factory application | emini Home |
 
 The bootloader (`0x0`), factory NVS (`0x9000`), boot selection data
 (`0xD000`), PHY data (`0xF000`), the second application slot (`0x410000`)
@@ -70,8 +70,8 @@ shasum -a 256 -c SHA256SUMS
 On Linux use `sha256sum -c SHA256SUMS`. All three lines must end in `OK`. If a
 line says `FAILED` or a file is missing, download that file again and do not
 continue. On Windows, run
-`certutil -hashfile emini-home-0.5.0-note4c.bin SHA256` and
-`certutil -hashfile emini-home-0.5.0-partition-table.bin SHA256`, and compare
+`certutil -hashfile emini-home-0.6.0-note4c.bin SHA256` and
+`certutil -hashfile emini-home-0.6.0-partition-table.bin SHA256`, and compare
 each result with its line in `SHA256SUMS`.
 
 ## 2. Connect the NOTE4C and find its port
@@ -129,7 +129,7 @@ Run this from the installation folder, with the path to the unpacked source
 code (on Windows, type `py` instead of `python3`):
 
 ```sh
-python3 path/to/emini-home-0.5.0/tools/preflight.py note4c-backup-a.bin note4c-backup-b.bin emini-home-0.5.0-partition-table.bin emini-home-0.5.0-note4c.bin
+python3 path/to/emini-home-0.6.0/tools/preflight.py note4c-backup-a.bin note4c-backup-b.bin emini-home-0.6.0-partition-table.bin emini-home-0.6.0-note4c.bin
 ```
 
 The check reads the two backups, confirms they are identical and compares the
@@ -137,7 +137,7 @@ bootloader, boot selection data, partition table and the future settings area
 with the NOTE4C this release was tested on. It also checks that the partition
 table file is the emini Home table and that the application file is an emini
 Home image for the ESP32-S3, and prints the version stored in that image: the
-`Application file` line must say `0.5.0`. After `READY` it names the two files
+`Application file` line must say `0.6.0`. After `READY` it names the two files
 for step 6. It never connects to the device, and it cannot tell a monochrome
 NOTE4 from a NOTE4C, so continue only if your device has the four-colour
 display. Save the output next to your backups; its `Backup SHA-256` line
@@ -175,7 +175,7 @@ make a new, empty folder, put the four release files in it as in step 1, and
 start again from step 4 in that folder. Then write the two files:
 
 ```sh
-esptool --chip esp32s3 -p PORT -b 460800 --after no-reset write-flash --flash-mode keep --flash-size keep --flash-freq keep 0x8000 emini-home-0.5.0-partition-table.bin 0x20000 emini-home-0.5.0-note4c.bin
+esptool --chip esp32s3 -p PORT -b 460800 --after no-reset write-flash --flash-mode keep --flash-size keep --flash-freq keep 0x8000 emini-home-0.6.0-partition-table.bin 0x20000 emini-home-0.6.0-note4c.bin
 ```
 
 `keep` stops esptool from changing the flash settings stored in the bootloader.
@@ -185,7 +185,7 @@ factory firmware. Keep the cable connected until the command finishes.
 ## 7. Verify what was written
 
 ```sh
-esptool --chip esp32s3 -p PORT --after no-reset verify-flash 0x8000 emini-home-0.5.0-partition-table.bin 0x20000 emini-home-0.5.0-note4c.bin
+esptool --chip esp32s3 -p PORT --after no-reset verify-flash 0x8000 emini-home-0.6.0-partition-table.bin 0x20000 emini-home-0.6.0-note4c.bin
 ```
 
 Both regions must report that the digest matched. If one does not, do not
@@ -201,7 +201,12 @@ esptool --chip esp32s3 -p PORT run
 The display changes after about 25 seconds. After a first installation it
 shows the setup screen with two QR codes; continue with
 [setting up from your phone](PANEL.md). After an update it shows your screens
-again.
+again. An update from 0.5.x or earlier keeps your settings and starts in **Breath**,
+the power mode that turns Wi-Fi off between downloads: press the round OK button
+once before you open the panel, and it answers for five minutes (see
+[Breath and Open](PANEL.md#breath-and-open)). Going back to an earlier release
+afterwards starts that release with default settings, because it does not know
+the new power setting.
 
 ## Going back to the factory firmware
 
