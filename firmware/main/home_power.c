@@ -43,10 +43,12 @@ esp_err_t home_power_init(void)
      * sleep. Instead of fighting the option we release, one pin at a time, only the pins that
      * MUST behave in sleep exactly as they do awake:
      *  - the three buttons, or they would not wake the chip,
-     *  - the power latch (17) and the panel rail (6), since the device lives or dies by them. */
+     *  - the power latch (17) and the panel rail (6), since the device lives or dies by them,
+     *  - the front LED (3), so it stays off. */
     static const gpio_num_t keep_awake[] = {
         GPIO_NUM_39, GPIO_NUM_18, GPIO_NUM_0, /* buttons: otherwise they would not wake the chip */
         GPIO_NUM_17,                          /* power latch: the device lives or dies by it */
+        GPIO_NUM_3,                           /* front status LED: keep it off during light sleep */
         GPIO_NUM_6,                           /* panel rail */
         /* The panel control lines. A paper refresh takes 25 s and for most of it the loop only
          * waits for BUSY in vTaskDelay - so the chip MAY fall asleep in that time. If chip

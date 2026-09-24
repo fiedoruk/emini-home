@@ -15,7 +15,7 @@
 
 enum { BLACK = 0, PAPER = 1, YELLOW = 2, RED = 3, W = 400, H = 300 };
 #ifndef HOME_VERSION_TEXT
-#define HOME_VERSION_TEXT "0.6.0"
+#define HOME_VERSION_TEXT "0.6.1"
 #endif
 /* Brushes: the user picks the tone structure in the
  * panel. The line-based screens (engraving, cross-hatch) were dropped after the device test:

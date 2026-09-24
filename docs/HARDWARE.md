@@ -1,6 +1,6 @@
 # Hardware
 
-emini Home 0.6.0 supports one device: the **ZECTRIX NOTE4C Devkit** with the
+emini Home 0.6.1 supports one device: the **ZECTRIX NOTE4C Devkit** with the
 four-colour display.
 
 | Part | Details |
@@ -9,7 +9,7 @@ four-colour display.
 | Chip | ESP32-S3 with native USB (tested unit: revision 0.2) |
 | Memory | 16 MiB flash, 8 MiB octal PSRAM |
 | Controls | Up (GPIO39) and Down (GPIO18) on the right edge, OK / BOOT (GPIO0) on the face |
-| Notes | Down shares its line with the board's power key, so its level is less clean than the other two; a status LED sits on GPIO3 and a reset pinhole on RST/EN |
+| Notes | Down shares its line with the board's power key, so its level is less clean than the other two; a status LED sits on GPIO3 (Home keeps it off since 0.6.1) and a reset pinhole on RST/EN |
 | Connectivity | 2.4 GHz Wi-Fi |
 
 The monochrome NOTE4 uses a different display and needs its own firmware.
@@ -84,12 +84,12 @@ The current goes into keeping the radio and the chip awake.
 | Release | Behaviour | Radio on | A full charge lasts |
 | --- | --- | --- | --- |
 | 0.5.2 and earlier | Wi-Fi connected, no sleep at all | all the time | about a day and a half, measured |
-| 0.6.0, Open | chip sleeps between events, Wi-Fi connected and waking for every third beacon | all the time | about a week, estimated |
-| 0.6.0, Breath (default) | Wi-Fi off between downloads; a press of OK opens the panel for five minutes | 15 to 55 seconds an hour overnight, measured | two to four weeks, estimated |
+| 0.6, Open | chip sleeps between events, Wi-Fi connected and waking for every third beacon | all the time | about a week, estimated |
+| 0.6, Breath (default) | Wi-Fi off between downloads; a press of OK opens the panel for five minutes | 15 to 55 seconds an hour overnight, measured | two to four weeks, estimated |
 
 The 0.5.2 figure comes from two full discharges read from the device's own
-history. The 0.6.0 figures are estimates. The radio time in Breath is measured, from
-the device's hourly log over a 13-hour run on battery, but a full discharge on 0.6.0
+history. The 0.6 figures are estimates. The radio time in Breath is measured, from
+the device's hourly log over a 13-hour run on battery, but a full discharge on 0.6
 has not been done yet. The device keeps that log for a week (see
 [privacy](PRIVACY.md)), so a week on battery is enough to replace the estimates with
 a measurement.

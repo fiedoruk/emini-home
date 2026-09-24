@@ -2,7 +2,7 @@
 
 **A calm, four-colour poster of your day for the ZECTRIX NOTE4C e-paper devkit.**
 
-`0.6.0` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
+`0.6.1` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
   <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.5.1. The Weather screen in the Print composition shows 15° in Czaplinek, 12–17 °C over 24 hours, cloud cover, a dithered band of the next hours, and the line Dry until 06:00 · Wind 3.4 m/s.">
@@ -15,10 +15,10 @@ yellow pigments. You set it up in your phone's browser, without an app or an
 account. After that the device does the rest on its own, and no emini.ink
 server sits in between.
 
-[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.6.0](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.0) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
+[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.6.1](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.1) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
 
 > [!WARNING]
-> Version 0.6.0 has been installed and tested on one NOTE4C. Read the
+> Version 0.6.1 has been installed and tested on one NOTE4C. Read the
 > [status](#status) before you install. The preflight check in the
 > installation guide tells you to stop if your device's boot data differs
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
@@ -134,17 +134,18 @@ goes into two full backups. In short:
 1. Back up the whole flash twice.
 2. Run [`tools/preflight.py`](tools/preflight.py) on the backups. It compares
    them with the tested NOTE4C and says `READY` or `STOP`.
-3. Write two files from the [0.6.0 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.0):
+3. Write two files from the [0.6.1 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.1):
    the partition table at `0x8000` and the application at `0x20000`. The
    bootloader and factory data stay untouched.
 4. Verify, start and continue on your phone.
 
 ## Status
 
-Where 0.6.0 stands:
+Where 0.6.1 stands:
 
-- **0.6.0 is the final release of emini Home.** The code stays here under the MIT
-  licence for anyone to build, change and install; no further releases are planned.
+- **0.6 is the final version of emini Home.** 0.6.1 only keeps the status LED off. The code
+  stays here under the MIT licence for anyone to build, change and install; no further feature
+  releases are planned.
 - **Tested on one NOTE4C Devkit** (ESP32-S3, 16 MiB flash, factory partition
   layout). This release was written and verified on that unit with the
   sequence from the installation guide: backups, preflight check, write and
@@ -160,8 +161,8 @@ Where 0.6.0 stands:
   estimate based on your internet address, which can land on your provider's
   city.
 - **Battery life depends on the power mode.** On the tested unit 0.5.2 lasted about a
-  day and a half on a charge. With 0.6.0 we expect two to four weeks in Breath and about
-  a week in Open. Both are estimates: a full discharge on 0.6.0 has not been measured.
+  day and a half on a charge. With 0.6 we expect two to four weeks in Breath and about
+  a week in Open. Both are estimates: a full discharge on 0.6 has not been measured.
   On a cable Home never sleeps and behaves exactly as before. The panel shows voltage and
   a rough percentage, and after a few days on battery the emini card shows its own estimate.
 - **Going back to the factory firmware** uses the standard esptool procedure

@@ -15,9 +15,10 @@ project, so replies are best effort.
 
 | Version | Security fixes |
 | --- | --- |
-| 0.6.0 (final release) | best effort |
+| 0.6.x (final version) | best effort |
 
-0.6.0 is the final release and no further releases are planned. If a fix were
+0.6 is the final version and no further feature releases are planned; 0.6.1 only
+keeps the status LED off. If a fix were
 ever needed, it would come as a new release, installed over USB with the
 [installation guide](docs/INSTALL.md). The firmware has no over-the-air update
 mechanism and does not check for new versions. Keep the backup from your first
