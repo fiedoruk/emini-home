@@ -56,6 +56,13 @@ hold OK / BOOT for 2 seconds to open the setup window for 5 minutes. Join the
 **emini.ink** Wi-Fi shown on the display and open `http://192.168.4.1`.
 Joining the network does not open the page by itself.
 
+**The installer or esptool does not see the NOTE4C.** Since 0.6.0 Home sleeps
+between events on battery, and its USB port sleeps with it. Hold the round OK
+button for 2 seconds until the setup screen appears, then unplug the cable and
+plug it in again. If an installation stopped with an error and the display still
+shows the old picture, the device may be stuck in its download mode: press the
+reset pinhole once.
+
 **I want to give the device to someone else.** Erase Home's settings over USB
 as described in [starting over](docs/INSTALL.md#starting-over). This clears
 your Wi-Fi details, paired browsers and settings. The factory firmware's own

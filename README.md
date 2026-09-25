@@ -127,7 +127,10 @@ On a USB cable and while the setup window is open, Home keeps Wi-Fi on in either
 
 The short way is the web installer at [esp32ai.me/install](https://esp32ai.me/install?fw=emini-home):
 open it in Chrome or Edge, plug the NOTE4C in with a USB-C data cable and give it the
-firmware, either as a file you downloaded from the release or as a link to it.
+firmware, either as a file you downloaded from the release or as a link to it. If the
+installer does not see the device, hold the round OK button for 2 seconds until the
+setup screen appears, then plug the cable in again: Home sleeps between events on
+battery, and its USB port with it.
 
 The careful way needs `esptool` and a terminal. The
 [installation guide](docs/INSTALL.md) has eight steps, and most of the time

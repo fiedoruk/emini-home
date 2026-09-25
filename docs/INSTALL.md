@@ -78,7 +78,12 @@ each result with its line in `SHA256SUMS`.
 
 Connect only the NOTE4C and unplug any other ESP32 board. Close anything else
 that talks to serial ports (Arduino IDE, a serial monitor, another flashing
-tool). The NOTE4C shows up as a USB JTAG/serial device:
+tool). Since 0.6.0 Home sleeps between events on battery, and its USB port
+sleeps with it, so the computer may not see the device at all. If emini Home is
+already installed, first hold the round OK button for 2 seconds until the setup
+screen appears: while that window is open Home stays awake. Then plug the cable
+in, or unplug it and plug it in again. The NOTE4C shows up as a USB JTAG/serial
+device:
 
 - macOS: `/dev/cu.usbmodem…`
 - Linux: `/dev/ttyACM0` or similar. If esptool reports *Permission denied*,
@@ -268,14 +273,18 @@ picture. It does not clear the factory firmware's own settings area at
 ## If something goes wrong
 
 - **The port is busy or esptool cannot connect.** Close other serial programs
-  and run the command again. On battery Home may be asleep when you plug the
-  cable in: give it ten seconds to notice the cable before the first command.
-  If esptool still reports `No serial data received` or cannot connect, unplug
-  the cable, plug it back in and wait again. As a last resort, start the NOTE4C
+  and run the command again. If the port is missing, Home is probably asleep:
+  hold the round OK button for 2 seconds until the setup screen appears, then
+  unplug the cable and plug it back in. If esptool still reports
+  `No serial data received` or cannot connect, as a last resort start the NOTE4C
   in download mode by hand: hold the round OK button, press the reset pinhole
   once, then let go of OK. The display does not change. Add `--before no-reset`
   after `--chip esp32s3` to each esptool command you run while the NOTE4C is in
   download mode.
+- **The web installer stopped with an error.** The NOTE4C can stay in its
+  download mode, and on battery unplugging the cable does not end it: the display
+  keeps its last picture while the battery runs down. Press the reset pinhole
+  once to start Home again, then try the installation again.
 - **Writing stopped halfway.** Do not erase the chip, and do not make new
   backups over your old ones. Reconnect, run the second command of step 6 and
   then step 7 again, or restore your backup. If esptool still cannot connect,
