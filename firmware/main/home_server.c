@@ -478,10 +478,11 @@ static esp_err_t api_inner(httpd_req_t *r)
     bool pairing = !strcmp(path, "/api/pair") && r->method == HTTP_POST;
     if (token < 0 && !pairing)
         return error(r, "401 Unauthorized", "Pair this phone with the code on Home");
-    /* Breath mode: a paired phone in use keeps the device reachable. Not what the panel reads by
-     * itself - the status (answered above), the picture after it changed, and requests marked
-     * X-Home-Auto - or a tab left open would keep the radio on. */
-    if (!(r->method == HTTP_GET && !strcmp(path, "/api/frame")) &&
+    /* Breath mode: a paired phone in use keeps the device reachable - paired only, because a
+     * pairing attempt passes the check above without a token (0.6.2). Not what the
+     * panel reads by itself - the status (answered above), the picture after it changed, and
+     * requests marked X-Home-Auto - or a tab left open would keep the radio on. */
+    if (token >= 0 && !(r->method == HTTP_GET && !strcmp(path, "/api/frame")) &&
         !httpd_req_get_hdr_value_len(r, "X-Home-Auto")) {
         home_lock();
         home_runtime.awake_until = esp_timer_get_time() + HOME_AWAKE_US;
@@ -577,10 +578,7 @@ static esp_err_t api_inner(httpd_req_t *r)
         }
         if (strcmp(c.feed_url, home_runtime.config.feed_url))
             memset(&home_runtime.data.feed, 0, sizeof(home_runtime.data.feed));
-        if (!c.feed_url[0])
-            home_runtime.refresh_requested &= ~2U;
-        if (!c.enabled[HOME_AIR])
-            home_runtime.refresh_requested &= ~4U;
+        home_runtime.refresh_requested &= home_sources_wanted(&c);
         home_runtime.config = c;
         home_runtime.request_id++; /* Save changes settings; explicit Show publishes them. */
         cJSON *out = home_config_json(&c, false);
@@ -741,14 +739,12 @@ static esp_err_t api_inner(httpd_req_t *r)
                         : !strcmp(v->valuestring, "air")   ? 4U
                                                            : 7U;
         home_lock();
-        if (!home_runtime.config.feed_url[0])
-            mask &= ~2U;
-        /* Air is asked for only while its screen is on and a place is saved. */
-        if (!home_runtime.config.enabled[HOME_AIR] || !home_runtime.config.location_ready)
-            mask &= ~4U;
+        /* Only a source whose screen is on and has a place or an address is asked. */
+        mask &= home_sources_wanted(&home_runtime.config);
         home_runtime.refresh_requested |= mask;
         home_unlock();
-        result = mask ? accepted(r) : error(r, "400 Bad Request", "Choose a source first");
+        /* A code, so the panel can say why in the reader's language. */
+        result = mask ? accepted(r) : error(r, "400 Bad Request", "source_off");
         goto done;
     }
     if (!strcmp(path, "/api/wifi")) {

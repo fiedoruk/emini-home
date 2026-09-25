@@ -72,20 +72,22 @@ five kinds of information:
 | Sky | Sunrise, sunset and the moon, worked out on the device from the place you set; nothing is downloaded |
 | Air | Air quality, UV and pollen from Open-Meteo for the place you set |
 
-Sky and Air are new, and they start switched off: your display keeps showing
-what it showed before. Air's picture arrives with the next update, so until then
-that screen says so when you switch it on. Turn one on, or off, under **In your
-collection** on its page.
+Sky and Air start switched off. Turn a screen on, or off, under **In your
+collection** on its page. A screen that is switched off downloads nothing; since
+0.6.2 that holds for Weather and News as well as Air. Out of the box the display
+shows only Weather, but News is in the collection too, so its feed is still
+asked about twice an hour: untick **Include this screen** on the News page if
+you do not want that.
 
 Tap a screen to open its page:
 
 - **Preview of saved settings**: a 1:1 view of the picture. It updates when new
   information arrives. Until Home has downloaded the forecast or the feed,
   every composition shows the same placeholder.
-- **Source & updates** (Weather and News): when the information was issued,
+- **Source & updates** (Weather, News and Air): when the information was issued,
   downloaded and last checked, and the time after which Home checks again.
-  **Check for updates** asks the source again at once; if it has nothing newer,
-  the picture stays as it is.
+  **Check for updates** asks the source again at once, if the screen is
+  switched on; if it has nothing newer, the picture stays as it is.
 - **What it says**: for Weather, the place (see below). For News, the feed
   address. For your note, the words.
 - **How it looks**: the **Composition** and a link to the texture, colour and
@@ -210,15 +212,18 @@ Home has two power modes, chosen under **Settings → Battery → Power** and sa
   already have open says **Home is resting**, and a new page does not load. A short press
   on the round **OK / BOOT** button opens the panel for five minutes, a few seconds after
   the press; the emini card that appears says so in its footer: **Panel open for 5
-  minutes**. Each thing you do in the panel starts the five minutes again, and the panel
-  counts the time down under the battery line. A short press of Up or Down changes the
+  minutes**. The five minutes start again whenever you ask Home for something in the
+  panel, such as opening it, a preview, a save or a Wi-Fi scan; what the panel checks by
+  itself, a town search and a tab left open do not keep Home awake. The panel counts the time down under the battery
+  line. A short press of Up or Down changes the
   picture without waking the radio; holding Down for two seconds asks for fresh data and
   switches the radio on for it.
 - **Open** keeps Wi-Fi connected, as in earlier releases: the panel answers at any time,
   and the battery runs down roughly two to four times faster, by our estimate.
 
-On a USB cable, while the setup window is open and until the first phone is paired, Home
-keeps Wi-Fi on in either mode.
+On a USB cable and while the setup window is open, Home keeps Wi-Fi on in either mode.
+Since 0.6.2 a device that no phone has paired yet rests like any other; hold OK / BOOT
+for 2 seconds to open the setup window and pair.
 
 ## Good to know
 
@@ -232,17 +237,18 @@ keeps Wi-Fi on in either mode.
   the card away. Two dots in the top right show which face you are on. Nothing
   changes on its own: the card is drawn once per press, because every picture costs
   the paper twenty-five seconds. In **Settings → Preferences** the button can do
-  another job instead: check for updates, hold the current screen (press again
-  to resume) or open the setup window. In Breath every short press still opens the
+  another job instead: check for updates, hold the current screen for the pause
+  time from the Rhythm tab (press again to resume) or open the setup window. In Breath every short press still opens the
   panel, whatever its job. While the card is up the picture
   underneath stays where it is, and a side button sends the card away.
   Holding OK / BOOT for 2 seconds opens the setup window, and holding it again
   closes it; short presses leave that card alone, so a stray press cannot take
   the pairing code off the screen while you are typing it.
 - The side buttons do more when you hold them. **Up** held for two seconds
-  holds the picture where it is, and holding it again lets the automatic
-  changes run. **Down** held for two seconds and then let go asks every source
-  for fresh data, and the screen is drawn again when the answer arrives, even
+  holds the picture where it is for the pause time set under **Take a pause**
+  on the Rhythm tab (15 minutes unless you change it), and holding it again
+  lets the automatic changes run at once. **Down** held for two seconds and then
+  let go asks every screen that is switched on for fresh data, and the screen is drawn again when the answer arrives, even
   if nothing changed, so you can see that the press did something. **Down**
   held for five seconds steps to the next display language: English, Polish,
   Chinese and back; the same choice sits in **Preferences**.

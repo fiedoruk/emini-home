@@ -17,9 +17,9 @@ project, so replies are best effort.
 | --- | --- |
 | 0.6.x (final version) | best effort |
 
-0.6 is the final version and no further feature releases are planned; 0.6.1 only
-keeps the status LED off. If a fix were
-ever needed, it would come as a new release, installed over USB with the
+0.6 is the final version and no further feature releases are planned. 0.6.1 and
+0.6.2 are maintenance releases: 0.6.1 keeps the status LED off, and 0.6.2 fixes what a
+review of 0.6.1 found. If another fix were ever needed, it would come as a new release, installed over USB with the
 [installation guide](docs/INSTALL.md). The firmware has no over-the-air update
 mechanism and does not check for new versions. Keep the backup from your first
 installation: it is your only copy of this unit's factory firmware and data.
@@ -58,17 +58,17 @@ following limits are known in this release:
   [starting over](docs/INSTALL.md#starting-over). Saved settings that Home
   cannot use are left in place: Home starts with default settings, or with the
   setup screen when the Wi-Fi and pairing details are affected. If the settings
-  area as a whole cannot be read, Home stops at start until that area is
-  erased.
+  area as a whole cannot be read, Home cannot start and restarts over and over
+  until that area is erased.
 
 A paired browser can set any public HTTPS address as the news feed. Home
 fetches feeds only over HTTPS on port 443 and only from public internet
 addresses, even after a redirect, so a feed address cannot point it at private
 addresses on your local network.
 
-Connections from Home to MET Norway, FreeIPAPI and news feeds use HTTPS
-(TLS 1.2) with certificate chain and hostname checks against a root
-certificate bundle built into the image. The firmware does not check
+Connections from Home to MET Norway, the Open-Meteo Air Quality API, FreeIPAPI
+and news feeds use HTTPS (TLS 1.2) with certificate chain and hostname checks
+against a root certificate bundle built into the image. The firmware does not check
 certificate validity dates, and the bundle changes only with a new release.
 The town search does not go through the device: the panel in your phone's
 browser sends it to Open-Meteo over HTTPS.

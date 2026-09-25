@@ -13,7 +13,7 @@ required, it is next to the component source or in [`licenses/`](licenses/).
 | [Espressif mDNS](https://github.com/espressif/esp-protocols) | 1.12.0 (`db06b19`) | Apache-2.0 | [`firmware/components/mdns/LICENSE`](firmware/components/mdns/LICENSE) |
 | NOTE4C display driver and battery curve, adapted from the [reference firmware by LazyYoun](https://github.com/LazyYoun/youn-ink-fourcolor-firmware/tree/51812e4ab3fa80ba7a5a5a274635ca2cf3901a25) | `51812e4` | MIT | notice at the top of [`firmware/main/home_panel.c`](firmware/main/home_panel.c) |
 | [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next), Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors; bitmap subset in `firmware/main/generated/home_font.c` | 2.001 | SIL OFL 1.1 | [`licenses/Atkinson-OFL.txt`](licenses/Atkinson-OFL.txt) |
-| [Noto Sans CJK SC](https://github.com/notofonts/noto-cjk), Copyright 2014-2021 Adobe (http://www.adobe.com/); bitmap subset (GB 2312 level 1, sizes 12/16/22/30 px) appended to `firmware/main/generated/home_font.c` by `tools/build_fonts_cjk.py` | Medium, 2.004 | SIL OFL 1.1 | [`licenses/NotoSansCJK-OFL.txt`](licenses/NotoSansCJK-OFL.txt) |
+| [Noto Sans CJK SC](https://github.com/notofonts/noto-cjk), Copyright 2014-2021 Adobe (http://www.adobe.com/); bitmap subset (GB 2312 levels 1 and 2, sizes 12/16/22/30 px) appended to `firmware/main/generated/home_font.c` by `tools/build_fonts_cjk.py` | Medium, 2.004 | SIL OFL 1.1 | [`licenses/NotoSansCJK-OFL.txt`](licenses/NotoSansCJK-OFL.txt) |
 | [TRMNL12 and TRMNL16 Bold](https://github.com/usetrmnl/trmnl-framework/tree/main/public/fonts), Copyright 2026 Heavyweight Digital Type Foundry s.r.o., commissioned by TRMNL; bitmaps at 12 and 16 px in `firmware/main/generated/home_font.c` by `tools/build_fonts_pixel.py` | 1.002 | SIL OFL 1.1 | [`licenses/TRMNL-OFL.txt`](licenses/TRMNL-OFL.txt) |
 | [IANA Time Zone Database](https://www.iana.org/time-zones), compiled table in `firmware/main/generated/home_zones.c` | 2026c | public domain | — |
 
@@ -61,6 +61,10 @@ the licence in `licenses/esp-idf/wpa_supplicant/README`: Copyright (c)
 
 - **Weather** comes from the [MET Norway](https://api.met.no/) Locationforecast
   API. Data is licensed under CC BY 4.0; the weather screen credits MET Norway.
+- **Air quality, UV and pollen** come from the
+  [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api),
+  only while the Air screen is switched on. Data is licensed under CC BY 4.0; the
+  panel credits Open-Meteo on the Air page.
 - **News** comes from the RSS or Atom feed you choose. The default is
   [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml). Headlines belong to
   their publishers and are not covered by this project's licence.

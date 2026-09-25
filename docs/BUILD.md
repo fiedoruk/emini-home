@@ -36,7 +36,7 @@ from `PROJECT_VER` in `firmware/CMakeLists.txt`.
 
 ## Generated files
 
-Two files in `firmware/main/generated` are committed as generated C, so the
+The tables in `firmware/main/generated` are committed as generated C, so the
 build needs nothing but ESP-IDF:
 
 - `home_font.c` holds bitmaps of Atkinson Hyperlegible Next 2.001 at 10, 22,
@@ -56,8 +56,11 @@ The 12 and 16 px slices are replaced by `tools/build_fonts_pixel.py` from
 under `public/fonts/`. The Chinese glyphs are appended by `tools/build_fonts_cjk.py` (Python 3 with
 Pillow) from `NotoSansCJKsc-Medium.otf`, available in the
 [noto-cjk repository](https://github.com/notofonts/noto-cjk) under
-`Sans/OTF/SimplifiedChinese/`; run it on an Atkinson-only `home_font.c` with
-the font path as its argument. The scripts that produced the Atkinson and
+`Sans/OTF/SimplifiedChinese/`; run it with the font path as its argument. It
+cuts the Chinese slice already in `home_font.c` and draws it again, leaving the
+Latin glyphs as they are. With version 2.004 of that font (SHA-256
+`ca094f6b0001fb048ca39ddd797a0cdb0179e1e55c6561e111c49c3e6a61d7b7`), Pillow
+12.2.0 and FreeType 2.14.3 it writes back exactly the committed file. The scripts that produced the Atkinson and
 time-zone tables are not part of this repository. If you need another glyph
 or a newer time zone release, please open an issue.
 
@@ -65,16 +68,16 @@ or a newer time zone release, please open an issue.
 
 The release configuration is `firmware/sdkconfig.defaults`, expanded by
 ESP-IDF v6.0 into the full `sdkconfig` that is attached to the
-[v0.6.1 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.1)
+[v0.6.2 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.2)
 for reference.
 
 Your application image will not be byte-identical to the release image,
 because ESP-IDF stores the build date and time inside it. Everything else
-should be. To check, download `emini-home-0.6.1-note4c.bin` from the release
+should be. To check, download `emini-home-0.6.2-note4c.bin` from the release
 into the `firmware` folder and run, still from `firmware`:
 
 ```sh
-python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.6.1-note4c.bin
+python3 ../tools/compare_image.py build/emini_home_g3.bin emini-home-0.6.2-note4c.bin
 ```
 
 `MATCH` means the two images differ only in the build timestamp and the

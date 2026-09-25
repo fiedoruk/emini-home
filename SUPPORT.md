@@ -36,10 +36,11 @@ hours and a pause hold only automatic changes.
 the forecast or the feed, every composition shows the same placeholder. The
 preview updates when the information arrives.
 
-**Check for updates on a Weather or News page did nothing.** Check for updates
-asks the source again at once. If the provider has nothing newer, the picture
-stays as it was. After a failed download Home tries again by itself in about
-15 minutes. Firmware updates are a separate thing: you install
+**Check for updates on a Weather, News or Air page did nothing.** Check for
+updates asks the source again at once, if that screen is switched on. If the provider
+has nothing newer, the picture stays as it was. After a failed download Home
+tries again by itself after 15 minutes, and after each failure that follows it
+waits twice as long, up to two hours. Firmware updates are a separate thing: you install
 them over USB with the [installation guide](docs/INSTALL.md).
 
 **Home forgot its settings after an update.** Home found saved settings it

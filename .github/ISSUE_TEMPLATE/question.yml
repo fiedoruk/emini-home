@@ -12,7 +12,7 @@ body:
     id: firmware
     attributes:
       label: emini Home version
-      placeholder: "0.4.4"
+      placeholder: "0.6.2"
   - type: textarea
     id: question
     attributes:

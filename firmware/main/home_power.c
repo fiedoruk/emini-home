@@ -87,7 +87,7 @@ esp_err_t home_power_init(void)
 }
 
 /* Bits for the log only - so one line shows WHAT keeps the chip awake. */
-enum { WHY_USB = 1, WHY_CHARGER = 2, WHY_SETUP = 4, WHY_MAINTENANCE = 8, WHY_UNPAIRED = 16 };
+enum { WHY_USB = 1, WHY_CHARGER = 2, WHY_SETUP = 4, WHY_MAINTENANCE = 8 };
 
 bool home_power_tick(void)
 {
@@ -138,11 +138,8 @@ bool home_power_tick(void)
         why |= WHY_SETUP;
     if (home_runtime.maintenance)
         why |= WHY_MAINTENANCE;
-    bool paired = false;
-    for (int i = 0; i < 4; i++)
-        paired |= home_runtime.secrets.token_used[i] != 0;
-    if (!paired)
-        why |= WHY_UNPAIRED; /* nobody has the panel yet: do not hide */
+    /* Not "no phone paired yet": pairing needs the setup window, which is a reason of its own,
+     * and until 0.6.2 a device left unpaired stayed awake for good (0.6.2). */
     home_unlock();
 
     bool want = why != 0;

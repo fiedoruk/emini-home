@@ -15,7 +15,7 @@
 
 enum { BLACK = 0, PAPER = 1, YELLOW = 2, RED = 3, W = 400, H = 300 };
 #ifndef HOME_VERSION_TEXT
-#define HOME_VERSION_TEXT "0.6.1"
+#define HOME_VERSION_TEXT "0.6.2"
 #endif
 /* Brushes: the user picks the tone structure in the
  * panel. The line-based screens (engraving, cross-hatch) were dropped after the device test:
@@ -74,7 +74,8 @@ typedef struct {
 } phrase_t;
 static const phrase_t chinese[] = {
     {" · sunscreen from %s", " · %s 起涂防晒"},
-    {"%lu d %lu h", "%lu 天 %lu 小时"},
+    {"%lu d", "%lu 天"},
+    {"%lu h", "%lu 小时"},
     {"%s for %d h", "%s 持续 %d 小时"},
     {"%s from %s", "%s 从 %s 起"},
     {"%s until %s", "%s 到 %s"},
@@ -2418,7 +2419,7 @@ static void info_battery_line(const home_stats_t *s, char *line, size_t cap, int
 static void info_footer(canvas_t *c, const home_config_t *cfg, const home_stats_t *s, int64_t now,
                         int lang)
 {
-    char line[96], a[24];
+    char line[96], a[32]; /* a Chinese 12-hour time takes 26 bytes */
     rect(c, 14, 253, 372, 1, BLACK);
     if (cfg->power_mode == HOME_POWER_BREATH)
         /* In Breath the press that shows this card also opens the phone panel (HOME_AWAKE_US in
@@ -2486,11 +2487,11 @@ static void info_nerd(canvas_t *c, const home_config_t *cfg, const home_stats_t 
     battery_bar(c, 14, 132, 168, 26, s->percent, s->charging);
     snprintf(value, sizeof value, "%lu", (unsigned long)s->pictures);
     info_number(c, 208, 36, 88, tr(lang, "PICTURES", "OBRAZÓW"), value);
-    if (s->awake_hours >= 48)
-        snprintf(value, sizeof value, "%lu d %lu h", (unsigned long)(s->awake_hours / 24),
-                 (unsigned long)(s->awake_hours % 24));
+    if (s->awake_hours >= 48) /* days only: "10 d 10 h" already overflows the 88 px cell */
+        snprintf(value, sizeof value, tr(lang, "%lu d", "%lu d"),
+                 (unsigned long)(s->awake_hours / 24));
     else
-        snprintf(value, sizeof value, "%lu h", (unsigned long)s->awake_hours);
+        snprintf(value, sizeof value, tr(lang, "%lu h", "%lu h"), (unsigned long)s->awake_hours);
     info_number(c, 298, 36, 88, tr(lang, "AWAKE", "CZUWA"), value);
     snprintf(value, sizeof value, "%lu", (unsigned long)s->fetches);
     info_number(c, 208, 90, 88, tr(lang, "DOWNLOADS", "POBRAŃ"), value);

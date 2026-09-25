@@ -39,6 +39,7 @@
     noticeTimer: null,
     previewTimer: null,
     previewEpoch: 0,
+    previewByPerson: false,
     previewController: null,
   };
   if (!["en", "pl"].includes(S.lang)) S.lang = "en";
@@ -157,6 +158,8 @@
       never: "Not yet",
       refreshSource: "Check for updates",
       sourceQueued: "Update requested. Home respects the source’s cache.",
+      sourceOff:
+        "Nothing to check: switch the screen on and set its place or feed first.",
       byteCount: "bytes",
       saved: "Saved on Home",
       unsaved: "Unsaved changes",
@@ -436,6 +439,8 @@
       refreshSource: "Sprawdź aktualizacje",
       sourceQueued:
         "Zlecono sprawdzenie. Home respektuje pamięć podręczną źródła.",
+      sourceOff:
+        "Nie ma czego sprawdzać: najpierw włącz ekran i ustaw jego miejsce albo kanał.",
       byteCount: "bajtów",
       saved: "Zapisane na Home",
       unsaved: "Niezapisane zmiany",
@@ -832,6 +837,7 @@
             buffer = await S.previewWork.promise;
           } else {
             clearTimeout(S.previewTimer);
+            S.previewByPerson = false;
             S.previewEpoch++;
             S.previewController?.abort();
             const result = await request("/api/preview?screen=" + screen, {
@@ -1635,7 +1641,8 @@
       S.conflict = true;
       render();
       notice(t("conflict"), true);
-    } else
+    } else if (e.code === "source_off") notice(t("sourceOff"), true);
+    else
       notice(
         t(e.status === 429 || e.status === 503 ? "busy" : "requestFailed"),
         true,
@@ -1670,8 +1677,11 @@
       if (!canvas.hidden) paint(canvas, cached.buffer);
     }
   }
-  function queueDraftPreview() {
+  // auto: the panel asks by itself, because new data arrived. In Breath such a preview must not
+  // keep Home awake; an edit by a person waiting in the same queue still does.
+  function queueDraftPreview(auto = false) {
     clearTimeout(S.previewTimer);
+    if (!auto) S.previewByPerson = true;
     S.previewEpoch++;
     S.previewController?.abort();
     const epoch = S.previewEpoch;
@@ -1685,6 +1695,8 @@
           : "Preparing your draft preview…";
     }
     S.previewTimer = setTimeout(async () => {
+      const byPerson = S.previewByPerson;
+      S.previewByPerson = false;
       if (!S.dirty || !S.token || !S.draft) return;
       if (C.validate(S.draft).length) {
         if (message) message.textContent = t("errorFields");
@@ -1703,6 +1715,7 @@
           headers: {
             Authorization: "Bearer " + requestToken,
             "Content-Type": "application/json",
+            ...(byPerson ? {} : { "X-Home-Auto": "1" }),
           },
           body,
           signal: controller.signal,
@@ -2538,7 +2551,7 @@
       ) {
         S.draftFrames = {};
         await previews(true);
-        if (S.dirty) queueDraftPreview();
+        if (S.dirty) queueDraftPreview(true);
       }
     } catch (e) {
       if (e.status !== 401) {

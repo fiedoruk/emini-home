@@ -23,7 +23,8 @@
  * cannot hold the radio on for good. */
 #define HOME_BACKGROUND_US INT64_C(90000000)
 /* The wait doubles after each such session, up to an hour: a router that stays off overnight
- * must not cost what a normal night costs a second time. The first address resets it. */
+ * must not cost what a normal night costs a second time. A session that gets its work done - the
+ * clock set and nothing left due - resets it (since 0.6.2; before, the first address did). */
 #define HOME_RETRY_US INT64_C(900000000)
 #define HOME_RETRY_MAX_US INT64_C(3600000000)
 /* After connecting the radio stays on a little: SNTP waits up to five seconds before its first
@@ -33,6 +34,10 @@
 #define HOME_OFF_MIN_US INT64_C(5000000)
 /* While the radio is on, sources due within this many seconds are fetched in the same session. */
 #define HOME_BATCH_S 300
+/* The chip's own clock drifts while it sleeps. A connection re-syncs it at most once an hour; with
+ * no screen that downloads anything (Note or Sky only) nothing else wakes the radio, so the clock
+ * asks for a sync of its own after this long (0.6.2). */
+#define HOME_CLOCK_RESYNC_S 21600
 
 static esp_netif_t *station;
 static int64_t next_connect;
@@ -514,7 +519,8 @@ static void control_task(void *unused)
             .busy = home_runtime.source_active || home_runtime.api_active || scan_requested ||
                     scan_active || scan_draining,
             .fetch_due = home_sources_due(&home_runtime.config, &home_runtime.data, time(NULL), 0),
-            .clock_unset = !sntp_synced,
+            .clock_unset = !sntp_synced ||
+                           (uint32_t)(mono / 1000000) - sntp_at_s >= HOME_CLOCK_RESYNC_S,
             .hold_until = hold_until,
             .retry_at = retry_at,
         };
@@ -552,6 +558,13 @@ static void control_task(void *unused)
             esp_err_t e = esp_wifi_stop();
             off_at = mono;
             was_online = false;
+            /* Off with the clock set and nothing due: the session did its work, so the pause
+             * after a failed one starts over. Until 0.6.2 every connection reset it, and a
+             * blocked time server kept the radio on for minutes an hour (0.6.2). */
+            if (!in.clock_unset && !in.fetch_due) {
+                retry_gap = HOME_RETRY_US;
+                retry_at = 0; /* and an old pause no longer holds back the next fetch */
+            }
             ESP_LOGI(TAG, "Radio off: %s", esp_err_to_name(e));
             continue;
         }
@@ -583,7 +596,6 @@ static void control_task(void *unused)
         }
         if (online && !was_online) {
             hold_until = mono + HOME_HOLD_US;
-            retry_gap = HOME_RETRY_US;
             /* The clock drifts while the chip sleeps and the radio is off, but the time servers
              * are still asked at most once an hour, as the privacy notes say. */
             if (!sntp_synced || (uint32_t)(mono / 1000000) - sntp_at_s >= 3600)
@@ -690,8 +702,11 @@ void home_sources_task(void *unused)
                 if (!m[i]->error[0] && now + HOME_BATCH_S >= m[i]->next_fetch)
                     m[i]->next_fetch = 0;
         }
+        /* Only screens that are switched on: a screen nobody shows must not send the place or
+         * the reader's address anywhere (air since 0.5.0, weather and headline since 0.6.2). */
+        unsigned wanted = home_sources_wanted(c);
         bool changed = false;
-        if (c->location_ready && now >= d->weather.meta.next_fetch) {
+        if ((wanted & 1U) && now >= d->weather.meta.next_fetch) {
             home_fetch_weather(c, &d->weather, now);
             home_lock();
             if (home_runtime.config.latitude == c->latitude &&
@@ -705,7 +720,7 @@ void home_sources_task(void *unused)
             }
             home_unlock();
         }
-        if (c->feed_url[0] && now >= d->feed.meta.next_fetch) {
+        if ((wanted & 2U) && now >= d->feed.meta.next_fetch) {
             home_fetch_feed(c, &d->feed, now);
             home_lock();
             if (!strcmp(home_runtime.config.feed_url, c->feed_url)) {
@@ -718,9 +733,8 @@ void home_sources_task(void *unused)
             }
             home_unlock();
         }
-        /* Air only when its screen is on: a screen nobody shows must not send the
-         * coordinates anywhere. Same worker, so never two connections at once. */
-        if (c->enabled[HOME_AIR] && c->location_ready && now >= d->air.meta.next_fetch) {
+        /* Same worker, so never two connections at once. */
+        if ((wanted & 4U) && now >= d->air.meta.next_fetch) {
             home_fetch_air(c, &d->air, now);
             home_lock();
             if (home_runtime.config.latitude == c->latitude &&

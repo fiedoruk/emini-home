@@ -4,7 +4,9 @@ CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
 CONFIG_ESPTOOLPY_FLASHFREQ_40M=y
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
-CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
+# After a crash Home starts again instead of standing still until someone presses the reset
+# pin: a halted device keeps its last picture and looks fine while the battery runs down.
+CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT=y
 CONFIG_FREERTOS_HZ=100
 # Power management: automatic light sleep between events. The locks in home_power.c keep it
 # away from the cable, from charging and from the maintenance protocol.

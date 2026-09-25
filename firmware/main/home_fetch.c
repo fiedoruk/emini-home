@@ -940,25 +940,33 @@ static void metadata(home_source_meta_t *m, const headers_t *h, int64_t now, boo
 }
 static void failed(home_source_meta_t *m, const headers_t *h, int64_t now, const char *reason)
 {
+    /* Fifteen minutes after a failure, and after each failure that follows twice the previous
+     * pause, up to two hours. On battery every try is a whole radio session, so a provider that
+     * is down or answers "Retry-After: 60" must not wake Home every minute (0.6.2). A
+     * provider may ask for a longer pause, never a shorter one. A refresh asked for by hand
+     * clears next_fetch and with it the count. */
+    int64_t delay = 900;
+    if (m->error[0] && m->next_fetch > m->checked_at) {
+        int64_t last = m->next_fetch - m->checked_at;
+        delay = last >= 3600 ? 7200 : last <= 450 ? 900 : 2 * last;
+    }
     m->checked_at = now;
     m->state = m->valid ? HOME_STALE : HOME_ERROR;
     snprintf(m->error, sizeof(m->error), "%s", reason);
-    int64_t delay = 900;
     if (h->retry[0]) {
+        int64_t asked = 0;
         char *end;
         long n = strtol(h->retry, &end, 10);
         if (*end == 0 && n > 0)
-            delay = n;
+            asked = n;
         else {
             int64_t at = home_parse_time(h->retry);
             if (at > now)
-                delay = at - now;
+                asked = at - now;
         }
+        if (asked > delay)
+            delay = asked > 86400 ? 86400 : asked;
     }
-    if (delay < 60)
-        delay = 60;
-    if (delay > 86400)
-        delay = 86400;
     m->next_fetch = now + delay + (esp_random() % 60);
 }
 esp_err_t home_fetch_weather(const home_config_t *c, home_weather_t *w, int64_t now)

@@ -2,7 +2,7 @@
 
 **A calm, four-colour poster of your day for the ZECTRIX NOTE4C e-paper devkit.**
 
-`0.6.1` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
+`0.6.2` · [emini.ink](https://emini.ink/home/) · tested on one NOTE4C · ESP-IDF v6.0 · MIT
 
 <p align="center">
   <img src="docs/images/note4c-photo.webp" width="720" alt="A ZECTRIX NOTE4C on a fridge door running emini Home 0.5.1. The Weather screen in the Print composition shows 15° in Czaplinek, 12–17 °C over 24 hours, cloud cover, a dithered band of the next hours, and the line Dry until 06:00 · Wind 3.4 m/s.">
@@ -15,10 +15,10 @@ yellow pigments. You set it up in your phone's browser, without an app or an
 account. After that the device does the rest on its own, and no emini.ink
 server sits in between.
 
-[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.6.1](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.1) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
+[Install](docs/INSTALL.md) · [Phone panel](docs/PANEL.md) · [Release 0.6.2](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.2) · [Website](https://emini.ink/home/) · [Hardware report](https://github.com/fiedoruk/emini-home/issues/new?template=hardware-report.yml)
 
 > [!WARNING]
-> Version 0.6.1 has been installed and tested on one NOTE4C. Read the
+> Version 0.6.2 has been installed and tested on one NOTE4C. Read the
 > [status](#status) before you install. The preflight check in the
 > installation guide tells you to stop if your device's boot data differs
 > from the tested one. It cannot tell a NOTE4 from a NOTE4C, and only the
@@ -63,7 +63,7 @@ same three compositions as the weather.
 Four pigments and no grey mean every tone on this display is a pattern. Since 0.5.0 the
 panel lets you choose the brush that paints it, in Settings → Appearance: grain (blue noise,
 the default), halftone dots, or the ordered grid of the earlier versions. The renderer was measured on a real NOTE4C with test
-cards before this release; yellow needs two pixels to exist at all, so no brush ever draws
+cards before 0.5.0; yellow needs two pixels to exist at all, so no brush ever draws
 it finer.
 
 ## One headline and your note
@@ -115,11 +115,13 @@ Since 0.6.0 Home has two power modes, chosen in the panel under Settings → Bat
   switches the radio on, fetches the weather and the news, and lets it sleep again: overnight
   on the tested unit the radio was on for 15 to 55 seconds an hour. While it sleeps the phone
   panel cannot reach the device. Press the round OK button, wait a few seconds, and the
-  panel opens for five minutes; each thing you do in it starts the five minutes again.
+  panel opens for five minutes. The five minutes start again whenever you ask Home for
+  something in the panel, such as opening it, a preview or a save; what the panel checks by
+  itself does not count.
 - **Open** keeps Wi-Fi connected, so the panel answers at any time, as in earlier releases.
   The battery runs down roughly two to four times faster, by our estimate.
 
-On a USB cable, during setup and until a phone is paired, Home keeps Wi-Fi on in either mode.
+On a USB cable and while the setup window is open, Home keeps Wi-Fi on in either mode.
 
 ## Install
 
@@ -134,22 +136,27 @@ goes into two full backups. In short:
 1. Back up the whole flash twice.
 2. Run [`tools/preflight.py`](tools/preflight.py) on the backups. It compares
    them with the tested NOTE4C and says `READY` or `STOP`.
-3. Write two files from the [0.6.1 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.1):
+3. Write two files from the [0.6.2 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.2):
    the partition table at `0x8000` and the application at `0x20000`. The
-   bootloader and factory data stay untouched.
+   bootloader and factory data stay untouched. An update from an earlier
+   emini Home needs only the application: every release so far has used the
+   same partition table.
 4. Verify, start and continue on your phone.
 
 ## Status
 
-Where 0.6.1 stands:
+Where 0.6.2 stands:
 
-- **0.6 is the final version of emini Home.** 0.6.1 only keeps the status LED off. The code
+- **0.6 is the final version of emini Home.** 0.6.1 and 0.6.2 are maintenance releases:
+  0.6.1 keeps the status LED off, and 0.6.2 fixes what a review of 0.6.1 found (see the
+  [release notes](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.2)). The code
   stays here under the MIT licence for anyone to build, change and install; no further feature
   releases are planned.
 - **Tested on one NOTE4C Devkit** (ESP32-S3, 16 MiB flash, factory partition
-  layout). This release was written and verified on that unit with the
-  sequence from the installation guide: backups, preflight check, write and
-  verify.
+  layout). The preflight check compares your backups with that unit's factory
+  flash. 0.6.2 went onto it as an update from 0.6.1 with the web installer: a
+  full backup first, then the three parts written and checked on the chip;
+  settings and pairing were kept.
 - **Phone setup** has been done end to end from an iPhone on that unit, from
   the setup Wi-Fi to the panel on the home network. Android phones have not
   been tried yet.
@@ -160,9 +167,10 @@ Where 0.6.1 stands:
 - **Location** comes from a town you search for in the panel, or from an
   estimate based on your internet address, which can land on your provider's
   city.
-- **Battery life depends on the power mode.** On the tested unit 0.5.2 lasted about a
-  day and a half on a charge. With 0.6 we expect two to four weeks in Breath and about
-  a week in Open. Both are estimates: a full discharge on 0.6 has not been measured.
+- **Battery life depends on the power mode.** On the tested unit, on 0.5.2 a charge lasted a
+  day and a half to two days, by the device's own battery readings. With 0.6 we expect two
+  to four weeks in Breath and about a week in Open. All three are estimates: a full
+  discharge has not been measured.
   On a cable Home never sleeps and behaves exactly as before. The panel shows voltage and
   a rough percentage, and after a few days on battery the emini card shows its own estimate.
 - **Going back to the factory firmware** uses the standard esptool procedure
@@ -177,7 +185,8 @@ helps the next person decide.
 Home talks to MET Norway for weather, to the news feed you choose, to FreeIPAPI
 for an approximate location and to public time servers. While the Air screen is
 switched on, it also sends the saved coordinates to the Open-Meteo Air Quality
-API for air quality, UV and pollen. When you search for a town, your phone's
+API for air quality, UV and pollen. Weather, news and air quality are fetched only
+while their screens are switched on. When you search for a town, your phone's
 browser sends the search to Open-Meteo. Each of these services sees an ordinary
 request from your internet address. Nothing goes to emini, and the firmware has
 no analytics. The panel runs over HTTP on your local network and settings are
@@ -206,6 +215,7 @@ Please report vulnerabilities privately through
 emini Home is released under the [MIT License](LICENSE).
 
 - Weather data from [MET Norway](https://api.met.no/), licensed CC BY 4.0.
+- Air quality, UV and pollen from the [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api), licensed CC BY 4.0.
 - Place search by [Open-Meteo.com](https://open-meteo.com/), using location
   data from [GeoNames](https://www.geonames.org/), licensed CC BY 4.0.
 - Approximate location from [FreeIPAPI](https://freeipapi.com/).

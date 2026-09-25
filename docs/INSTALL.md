@@ -4,7 +4,7 @@
 > files from Chrome or Edge, with the file or a link to it. This guide is the careful
 > route: two full backups and a preflight check before anything is written.
 
-This guide installs emini Home 0.6.1 on a **ZECTRIX NOTE4C Devkit** from a
+This guide installs emini Home 0.6.2 on a **ZECTRIX NOTE4C Devkit** from a
 computer, using Espressif's `esptool`. Most of the time goes into two full
 backups of the 16 MiB flash.
 
@@ -36,12 +36,12 @@ to the factory firmware has not yet been tried on a real NOTE4C.
   new terminal later, run the activate line again before the next esptool
   command.
 
-- From the [v0.6.1 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.1):
-  `emini-home-0.6.1-note4c.bin`, `emini-home-0.6.1-partition-table.bin`,
-  `emini-home-0.6.1-sdkconfig.txt` and `SHA256SUMS`.
-- A copy of this repository at tag `v0.6.1`, for `tools/preflight.py`.
+- From the [v0.6.2 release](https://github.com/fiedoruk/emini-home/releases/tag/v0.6.2):
+  `emini-home-0.6.2-note4c.bin`, `emini-home-0.6.2-partition-table.bin`,
+  `emini-home-0.6.2-sdkconfig.txt` and `SHA256SUMS`.
+- A copy of this repository at tag `v0.6.2`, for `tools/preflight.py`.
   Download **Source code (zip)** from the same release and unpack it outside
-  your installation folder. It unpacks into a folder named `emini-home-0.6.1`.
+  your installation folder. It unpacks into a folder named `emini-home-0.6.2`.
 
 ## What changes on the device
 
@@ -70,8 +70,8 @@ shasum -a 256 -c SHA256SUMS
 On Linux use `sha256sum -c SHA256SUMS`. All three lines must end in `OK`. If a
 line says `FAILED` or a file is missing, download that file again and do not
 continue. On Windows, run
-`certutil -hashfile emini-home-0.6.1-note4c.bin SHA256` and
-`certutil -hashfile emini-home-0.6.1-partition-table.bin SHA256`, and compare
+`certutil -hashfile emini-home-0.6.2-note4c.bin SHA256` and
+`certutil -hashfile emini-home-0.6.2-partition-table.bin SHA256`, and compare
 each result with its line in `SHA256SUMS`.
 
 ## 2. Connect the NOTE4C and find its port
@@ -129,7 +129,7 @@ Run this from the installation folder, with the path to the unpacked source
 code (on Windows, type `py` instead of `python3`):
 
 ```sh
-python3 path/to/emini-home-0.6.1/tools/preflight.py note4c-backup-a.bin note4c-backup-b.bin emini-home-0.6.1-partition-table.bin emini-home-0.6.1-note4c.bin
+python3 path/to/emini-home-0.6.2/tools/preflight.py note4c-backup-a.bin note4c-backup-b.bin emini-home-0.6.2-partition-table.bin emini-home-0.6.2-note4c.bin
 ```
 
 The check reads the two backups, confirms they are identical and compares the
@@ -137,7 +137,7 @@ bootloader, boot selection data, partition table and the future settings area
 with the NOTE4C this release was tested on. It also checks that the partition
 table file is the emini Home table and that the application file is an emini
 Home image for the ESP32-S3, and prints the version stored in that image: the
-`Application file` line must say `0.6.1`. After `READY` it names the two files
+`Application file` line must say `0.6.2`. After `READY` it names the two files
 for step 6. It never connects to the device, and it cannot tell a monochrome
 NOTE4 from a NOTE4C, so continue only if your device has the four-colour
 display. Save the output next to your backups; its `Backup SHA-256` line
@@ -152,7 +152,10 @@ identifies them.
   Check that the four release files are in this folder and that the path to
   `preflight.py` is right, then run the check again.
 - Anything else, including a line that starts with `STOP:`, means do not
-  write. If you have not written anything yet, your NOTE4C is not broken; it
+  write. If the line asks you to read the flash again, make a new, empty
+  folder, put the four release files in it as in step 1 and repeat steps 4 and
+  5 there: esptool overwrites a file with the same name, and the backup from
+  your first installation is the only copy of the factory firmware. If you have not written anything yet, your NOTE4C is not broken; it
   just differs from the tested unit. Do not erase anything to make the check
   pass. Run the command from step 8 to start your firmware again, and you can
   [open an issue](https://github.com/fiedoruk/emini-home/issues/new/choose)
@@ -175,17 +178,23 @@ make a new, empty folder, put the four release files in it as in step 1, and
 start again from step 4 in that folder. Then write the two files:
 
 ```sh
-esptool --chip esp32s3 -p PORT -b 460800 --after no-reset write-flash --flash-mode keep --flash-size keep --flash-freq keep 0x8000 emini-home-0.6.1-partition-table.bin 0x20000 emini-home-0.6.1-note4c.bin
+esptool --chip esp32s3 -p PORT -b 460800 --after no-reset write-flash --flash-mode keep --flash-size keep --flash-freq keep 0x8000 emini-home-0.6.2-partition-table.bin 0x20000 emini-home-0.6.2-note4c.bin
 ```
 
 `keep` stops esptool from changing the flash settings stored in the bootloader.
 It only has an effect on a file written at `0x0`, as when you go back to the
 factory firmware. Keep the cable connected until the command finishes.
 
+Every emini Home release so far has used the same partition table, so on a
+device that already runs Home the table write changes nothing. That is why the
+release notes describe an update as the application at `0x20000` alone; this
+guide writes both files so that one sequence serves a first installation and an
+update.
+
 ## 7. Verify what was written
 
 ```sh
-esptool --chip esp32s3 -p PORT --after no-reset verify-flash 0x8000 emini-home-0.6.1-partition-table.bin 0x20000 emini-home-0.6.1-note4c.bin
+esptool --chip esp32s3 -p PORT --after no-reset verify-flash 0x8000 emini-home-0.6.2-partition-table.bin 0x20000 emini-home-0.6.2-note4c.bin
 ```
 
 Both regions must report that the digest matched. If one does not, do not
@@ -250,15 +259,23 @@ esptool --chip esp32s3 -p PORT run
 
 Home then starts as it does after a first installation and opens the setup
 screen. Do this before you give the device to someone else, after you lose a
-paired phone, or if Home stops at start because its settings area cannot be
-read. It does not clear the factory firmware's own settings area at `0x9000`,
-which can still hold Wi-Fi details saved by the factory firmware; see
+paired phone, or if Home cannot start because its settings area cannot be
+read: it then restarts over and over while the display keeps its last
+picture. It does not clear the factory firmware's own settings area at
+`0x9000`, which can still hold Wi-Fi details saved by the factory firmware; see
 [privacy](PRIVACY.md#on-the-device).
 
 ## If something goes wrong
 
-- **The port is busy or esptool cannot connect.** Close other serial programs,
-  try another USB port or cable, and run the command again.
+- **The port is busy or esptool cannot connect.** Close other serial programs
+  and run the command again. On battery Home may be asleep when you plug the
+  cable in: give it ten seconds to notice the cable before the first command.
+  If esptool still reports `No serial data received` or cannot connect, unplug
+  the cable, plug it back in and wait again. As a last resort, start the NOTE4C
+  in download mode by hand: hold the round OK button, press the reset pinhole
+  once, then let go of OK. The display does not change. Add `--before no-reset`
+  after `--chip esp32s3` to each esptool command you run while the NOTE4C is in
+  download mode.
 - **Writing stopped halfway.** Do not erase the chip, and do not make new
   backups over your old ones. Reconnect, run the second command of step 6 and
   then step 7 again, or restore your backup. If esptool still cannot connect,
@@ -272,8 +289,8 @@ which can still hold Wi-Fi details saved by the factory firmware; see
   with the setup screen when the Wi-Fi and pairing details are affected,
   instead of stopping, and it erases nothing. Set it up again in the panel,
   and please open an issue with the version you updated from. If the settings
-  area as a whole cannot be read, Home stops at start; *Starting over* clears
-  that area.
+  area as a whole cannot be read, Home cannot start and restarts over and over;
+  *Starting over* clears that area.
 
 Please do not use `erase-flash`, `idf.py flash`, merged images from other
 projects or eFuse commands on a NOTE4C you want to keep. They write the

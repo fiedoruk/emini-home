@@ -3,8 +3,13 @@ Atkinson tables in main/generated/home_font.c.
 
 The Atkinson bytes are taken from the existing file, never re-rendered, so every
 Latin frame stays bit-identical. CJK glyphs go into the same bit blob and glyph
-array; home_cjk_fonts[] maps a pixel size to its slice. Codepoints: GB 2312 level 1
-(3 755 hanzi) plus CJK punctuation and full-width forms.
+array; home_cjk_fonts[] maps a pixel size to its slice. Codepoints: the whole of GB 2312
+(level 1 and 2, 6 763 hanzi) plus CJK punctuation and full-width forms. Level 2 came in 0.5.1
+after a reader in China reported missing characters: news headlines carry level-2 names and
+places all the time.
+
+Running it again on a file that already has CJK is fine: the old CJK slice is cut first, so the
+Atkinson and TRMNL bytes stay exactly as they were.
 """
 import hashlib
 import re
@@ -21,7 +26,7 @@ SIZES = (30, 22, 16, 12)  # poster sizes a headline or note falls back through
 
 def charset():
     cps = set()
-    for hi in range(0xB0, 0xD8):
+    for hi in range(0xB0, 0xF8):  # level 1 (B0-D7) and level 2 (D8-F7)
         for lo in range(0xA1, 0xFF):
             try:
                 cps.add(ord(bytes([hi, lo]).decode('gb2312')))
@@ -37,14 +42,17 @@ def parse_existing(src):
     bits = bytes(int(v, 16) for v in re.findall(r'0x([0-9a-f]{2})', src.split('home_font_bits[]')[1].split('};')[0]))
     rows = [tuple(map(int, r)) for r in re.findall(r'\{(\d+),(\d+),(\d+),(\d+),(-?\d+),(-?\d+),(\d+)\}', src.split('home_glyphs[]')[1])]
     fonts = [tuple(map(int, m)) for m in re.findall(r'\{(\d+),(\d+),(\d+)\},', src.split('home_fonts[8]')[1])]
-    assert len(fonts) == 8 and len(rows) == sum(f[2] for f in fonts), (len(fonts), len(rows))
+    assert len(fonts) == 8, len(fonts)
+    latin = sum(f[2] for f in fonts)
+    if len(rows) > latin:  # a CJK slice from an earlier run: cut it, keep every Latin byte
+        cut = min(r[1] for r in rows[latin:])
+        rows, bits = rows[:latin], bits[:cut]
+    assert len(rows) == latin, (len(rows), latin)
     return bits, rows, fonts
 
 
 def main():
     src = (GEN / 'home_font.c').read_text()
-    if 'home_cjk_fonts' in src:
-        sys.exit('home_font.c already carries CJK tables; regenerate from the Atkinson-only file')
     bits, rows, fonts = parse_existing(src)
     blob, records, cjk_fonts = bytearray(bits), list(rows), []
     cps = charset()
@@ -99,7 +107,7 @@ def main():
     if 'home_cjk_fonts' not in header:
         header = header.replace('extern const home_font_t home_fonts[8];',
                                 'extern const home_font_t home_fonts[8];\n'
-                                '/* Simplified Chinese (Noto Sans CJK SC, OFL-1.1): GB 2312 level 1 + punctuation, sizes 30/22/16/12. */\n'
+                                '/* Simplified Chinese (Noto Sans CJK SC, OFL-1.1): GB 2312 level 1 and 2 + punctuation, sizes 30/22/16/12. */\n'
                                 'extern const home_font_t home_cjk_fonts[%d];' % len(cjk_fonts))
         header = header.replace('/* Generated Atkinson bitmap glyph subset. Atkinson font: OFL-1.1.',
                                 '/* Generated bitmap glyphs: Atkinson Hyperlegible Next and Noto Sans CJK SC, both OFL-1.1.')

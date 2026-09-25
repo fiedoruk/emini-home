@@ -13,12 +13,22 @@ bool home_radio_wanted(const home_radio_in_t *in)
     return in->fetch_due || in->clock_unset || in->now < in->hold_until;
 }
 
+unsigned home_sources_wanted(const home_config_t *c)
+{
+    if (!c)
+        return 0;
+    return (c->enabled[HOME_WEATHER] && c->location_ready ? 1U : 0U) |
+           (c->enabled[HOME_FEED] && c->feed_url[0] ? 2U : 0U) |
+           (c->enabled[HOME_AIR] && c->location_ready ? 4U : 0U);
+}
+
 bool home_sources_due(const home_config_t *c, const home_data_t *d, int64_t now, int64_t ahead)
 {
     if (!c || !d)
         return false;
+    unsigned wanted = home_sources_wanted(c);
     int64_t at = now + ahead;
-    return (c->location_ready && at >= d->weather.meta.next_fetch) ||
-           (c->feed_url[0] && at >= d->feed.meta.next_fetch) ||
-           (c->enabled[HOME_AIR] && c->location_ready && at >= d->air.meta.next_fetch);
+    return ((wanted & 1U) && at >= d->weather.meta.next_fetch) ||
+           ((wanted & 2U) && at >= d->feed.meta.next_fetch) ||
+           ((wanted & 4U) && at >= d->air.meta.next_fetch);
 }

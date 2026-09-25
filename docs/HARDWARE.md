@@ -1,6 +1,6 @@
 # Hardware
 
-emini Home 0.6.1 supports one device: the **ZECTRIX NOTE4C Devkit** with the
+emini Home 0.6.2 supports one device: the **ZECTRIX NOTE4C Devkit** with the
 four-colour display.
 
 | Part | Details |
@@ -77,20 +77,22 @@ curve used by the reference firmware, clamped to 0–100 %:
 `(-V*V + 9016*V - 19189000) / 10000`, where `V` is in millivolts. It is a
 rough estimate, not a fuel gauge, and it is hidden while charging.
 
-Battery life on the tested unit, with three screens taking turns every twenty
-minutes. Drawing is not what costs: the panel is busy about 4.6 % of the day.
+Battery life on the tested unit. Drawing costs little: over four and a half
+days of everyday use, 715 pictures kept the panel busy about 4.6 % of the time.
 The current goes into keeping the radio and the chip awake.
 
 | Release | Behaviour | Radio on | A full charge lasts |
 | --- | --- | --- | --- |
-| 0.5.2 and earlier | Wi-Fi connected, no sleep at all | all the time | about a day and a half, measured |
+| 0.5.2 and earlier | Wi-Fi connected, no sleep at all | all the time | a day and a half to two days, estimated |
 | 0.6, Open | chip sleeps between events, Wi-Fi connected and waking for every third beacon | all the time | about a week, estimated |
 | 0.6, Breath (default) | Wi-Fi off between downloads; a press of OK opens the panel for five minutes | 15 to 55 seconds an hour overnight, measured | two to four weeks, estimated |
 
-The 0.5.2 figure comes from two full discharges read from the device's own
-history. The 0.6 figures are estimates. The radio time in Breath is measured, from
-the device's hourly log over a 13-hour run on battery, but a full discharge on 0.6
-has not been done yet. The device keeps that log for a week (see
+The 0.5.2 figure comes from the device's own week of battery readings: two full
+days on battery used about 50 and 55 percentage points of charge. It is an
+extrapolation, not a measured discharge. The 0.6 figures are estimates too. The
+radio time in Breath is measured, from the device's hourly log over a 13-hour run
+on battery; a later 44-hour stretch averaged 42 seconds an hour. A full discharge
+on 0.6 has not been done yet. The device keeps that log for a week (see
 [privacy](PRIVACY.md)), so a week on battery is enough to replace the estimates with
 a measurement.
 

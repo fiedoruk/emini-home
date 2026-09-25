@@ -15,17 +15,22 @@
 
 typedef struct {
     bool breath;         /* false: Open mode, Wi-Fi always on */
-    unsigned reasons;    /* home_power_snapshot(): cable, charger, setup, maintenance, not paired */
+    unsigned reasons;    /* home_power_snapshot(): cable, charger, setup, maintenance */
     int64_t now;         /* monotonic */
     int64_t awake_until; /* end of the panel window */
     bool busy;           /* a fetch, a request, a scan or a new network is in progress */
     bool fetch_due;      /* home_sources_due() */
-    bool clock_unset;    /* SNTP has not set the clock since boot */
+    bool clock_unset;    /* SNTP has not set the clock since boot, or not for six hours */
     int64_t hold_until;  /* a few seconds after connecting, for the clock and the .local name */
     int64_t retry_at;    /* after a session that went nowhere, background work waits until then */
 } home_radio_in_t;
 
 bool home_radio_wanted(const home_radio_in_t *in);
+
+/* The sources worth asking for, as the refresh bits (1 weather, 2 headline, 4 air): a screen that
+ * is switched on and has what it needs, a place or an address. A screen nobody shows sends
+ * nothing anywhere and wakes no radio. */
+unsigned home_sources_wanted(const home_config_t *c);
 
 /* Whether any source that is switched on falls due within `ahead` seconds of `now` (wall clock).
  * Only next_fetch is read: a refresh request is turned into next_fetch = 0 by the source worker,

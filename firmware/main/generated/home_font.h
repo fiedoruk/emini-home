@@ -9,6 +9,6 @@ typedef struct { uint8_t size; uint16_t first, count; } home_font_t;
 extern const uint8_t home_font_bits[];
 extern const home_glyph_t home_glyphs[];
 extern const home_font_t home_fonts[8];
-/* Simplified Chinese (Noto Sans CJK SC, OFL-1.1): GB 2312 level 1 + punctuation, sizes 30/22/16/12. */
+/* Simplified Chinese (Noto Sans CJK SC, OFL-1.1): GB 2312 level 1 and 2 + punctuation, sizes 30/22/16/12. */
 extern const home_font_t home_cjk_fonts[4];
 #endif

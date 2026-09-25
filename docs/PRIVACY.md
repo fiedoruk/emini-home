@@ -14,12 +14,12 @@ address from any of these requests.
 
 | Service | Sent by | When | What it receives |
 | --- | --- | --- | --- |
-| [MET Norway](https://api.met.no/) weather API | Home | when the last forecast expires, as MET Norway sets it | the saved forecast location, cut to 4 decimal places, plus your home IP address |
-| [Open-Meteo Air Quality API](https://open-meteo.com/en/terms) | Home | only while the Air screen is switched on, about once an hour | the saved location, cut to 4 decimal places, plus your home IP address |
-| Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | when the last copy of the feed expires, and never sooner than 25 minutes after the previous request | a request for that feed, plus your home IP address |
+| [MET Norway](https://api.met.no/) weather API | Home | only while the Weather screen is switched on, when the last forecast expires, as MET Norway sets it | the saved forecast location, rounded to 4 decimal places, plus your home IP address |
+| [Open-Meteo Air Quality API](https://open-meteo.com/en/terms) | Home | only while the Air screen is switched on, about once an hour | the saved location, rounded to 4 decimal places, plus your home IP address |
+| Your news feed (by default [BBC World](https://feeds.bbci.co.uk/news/world/rss.xml)) | Home | only while the News screen is switched on, when the last copy of the feed expires, at most about twice an hour (see below) | a request for that feed, plus your home IP address |
 | [FreeIPAPI](https://freeipapi.com/) | Home | when the panel asks Home for an approximate location | your home IP address, which it uses to estimate a location |
 | [Open-Meteo Geocoding API](https://open-meteo.com/en/terms) | your phone's browser, from the panel | only when you search for a town | the text you typed, your phone's IP address and ordinary browser request data |
-| `pool.ntp.org` time servers | Home | at start and then hourly | time requests, plus your home IP address |
+| `pool.ntp.org` time servers | Home | at start and then about hourly; in Breath, when no screen downloads anything, every six hours | time requests, plus your home IP address |
 
 Requests from Home identify the software with the User-Agent
 `emini-home/0.6 (+https://github.com/fiedoruk/emini-home)`: its name and
@@ -49,23 +49,28 @@ There is no GPS. You can set the place for the weather in two ways.
    estimate.
 
 **How often Home asks.** Home asks a provider again once the copy it holds expires, and it
-trusts what the provider says — but never sooner than **25 minutes** after the previous
-request, whatever the provider declares. That is half an hour, less the few minutes by which
+trusts what the provider says — but after an answer never sooner than **25 minutes**,
+whatever the provider declares, unless you ask for an update yourself. That is half an hour, less the few minutes by which
 Home may bring a request forward so that two share one trip of the radio. After a failed
-request it tries again in about fifteen minutes. That floor matters: weather declares about half an hour and air quality
+request it waits fifteen minutes, and after each failure that follows twice as long as before,
+up to two hours. That floor matters: weather declares about half an hour and air quality
 about an hour, but the default BBC World feed declares a lifetime of about **two seconds**.
 Until 0.6.0 that meant a request every few minutes, roughly fifteen an hour, each one carrying
 your home IP address to the feed's server. It is now about two an hour. A screen that
 repaints every twenty minutes cannot show anything fresher anyway. If that is still
-more than you want, point Home at a different feed or switch the news screen off in the panel.
+more than you want, point Home at a different feed or switch the News screen off in the
+panel: since 0.6.2 a screen that is switched off is not fetched at all. Out of the box the
+display shows only Weather, but News is in the collection too, so the feed is asked; untick
+**Include this screen** on the News page to stop that.
 
 In **Breath**, the default power mode since 0.6.0, the radio is off between these requests.
 That changes when they are sent, not what is sent or to whom.
 
 Whichever way you choose, the saved location becomes the forecast location
-that Home sends to MET Norway. While the Air screen is switched on, Home sends
-the same coordinates to the Open-Meteo Air Quality API about once an hour, for
-air quality, UV and pollen. Switch that screen off and Home stops asking.
+that Home sends to MET Norway while the Weather screen is switched on. While the
+Air screen is switched on, Home sends the same coordinates to the Open-Meteo Air
+Quality API about once an hour, for air quality, UV and pollen. Switch a screen
+off and Home stops asking for it; for Weather and News that has been the case since 0.6.2.
 
 ## On your local network
 
@@ -76,9 +81,14 @@ air quality, UV and pollen. Switch that screen off and Home stops asking.
 - The device announces itself on the local network as `home-xxxx.local`,
   with its model and firmware version.
 - Without pairing, any device on the same network can ask Home for its name,
-  local address, firmware version, the screen it shows, whether it is paired
-  and whether the setup window is open. Your settings, note, feed address and
-  Wi-Fi details need a paired browser.
+  local address and `.local` name, firmware version, the screen it shows,
+  whether a picture is being drawn, how many it has drawn since it started and
+  how long the last one took, whether it
+  is online, paired and has the time, whether the setup window is open and for
+  how long, the last button pressed (which one, for how long and what it did)
+  and how long ago the weather was last checked. Polled repeatedly, these
+  answers show when someone uses the device. Your settings, note, feed address,
+  battery, power log and Wi-Fi details need a paired browser.
 
 ## On the device
 

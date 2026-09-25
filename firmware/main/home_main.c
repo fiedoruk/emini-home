@@ -207,17 +207,18 @@ static void refresh_action(void)
 {
     home_lock();
     if (!home_runtime.maintenance) {
-        home_runtime.refresh_requested |= 1U;
-        if (home_runtime.config.feed_url[0])
-            home_runtime.refresh_requested |= 2U;
-        if (home_runtime.config.enabled[HOME_AIR] && home_runtime.config.location_ready)
-            home_runtime.refresh_requested |= 4U;
+        unsigned wanted = home_sources_wanted(&home_runtime.config);
+        home_runtime.refresh_requested |= wanted;
         /* The fresh data belongs on the screen the reader is looking at, and the reader has
          * to see that the press did something even when the provider answers "not modified"
          * and every pixel stays where it was. */
         home_runtime.manual_until =
             esp_timer_get_time() + (int64_t)home_runtime.config.pause_min * 60000000;
         home_runtime.force_show = true;
+        if (!wanted) { /* nothing to download (Note or Sky only, no place yet): answer now */
+            home_runtime.dirty = true;
+            home_runtime.request_id++;
+        }
     }
     home_unlock();
     ESP_LOGI(TAG, "Physical hold-and-release: refresh requested");
@@ -254,11 +255,7 @@ static void action(int key)
             return;
         } else if (what == 1) { /* fetch weather, the headline and the air now */
             home_runtime.force_show = true;
-            home_runtime.refresh_requested |= 1U;
-            if (home_runtime.config.feed_url[0])
-                home_runtime.refresh_requested |= 2U;
-            if (home_runtime.config.enabled[HOME_AIR] && home_runtime.config.location_ready)
-                home_runtime.refresh_requested |= 4U;
+            home_runtime.refresh_requested |= home_sources_wanted(&home_runtime.config);
             pause = false;
         } else if (what == 2) { /* hold the current screen, or resume when already held */
             if (home_runtime.manual_until > now) {
@@ -613,7 +610,10 @@ void home_loop_step(void)
             n->first_start = now;
         int64_t midnight = now - (now % 86400);
         if (n->day_stamp != midnight) {
-            int days = n->day_stamp ? (int)((midnight - n->day_stamp) / 86400) : HOME_BATTERY_DAYS;
+            int64_t gap = n->day_stamp ? (midnight - n->day_stamp) / 86400 : HOME_BATTERY_DAYS;
+            /* A clock set back past midnight made this negative, and the shift below read past
+             * the end of the week (0.6.2): no shift then, and never more than a week. */
+            int days = gap < 0 ? 0 : gap > HOME_BATTERY_DAYS ? HOME_BATTERY_DAYS : (int)gap;
             for (int k = HOME_BATTERY_DAYS - 1; k >= 0; --k)
                 n->battery_day[k] = k >= days ? n->battery_day[k - days] : -1;
             n->day_stamp = midnight;
